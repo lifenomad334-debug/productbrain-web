@@ -1,5 +1,6 @@
 import SlideGallery from "@/components/SlideGallery";
 import DownloadButtons from "@/components/DownloadButtons";
+import FeedbackBox from "@/components/FeedbackBox";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
@@ -52,9 +53,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <p className="text-xs text-gray-500 mt-1">
             LLM: {generation.llm_time_ms ?? "-"}ms · Render: {generation.render_time_ms ?? "-"}ms
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Status: {generation.status}
-          </p>
         </div>
 
         <DownloadButtons assets={assets} />
@@ -62,6 +60,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       <div className="mt-6">
         <SlideGallery assets={assets} />
+      </div>
+
+      <div className="mt-10">
+        <FeedbackBox generationId={id} />
       </div>
     </main>
   );
