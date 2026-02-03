@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { assertEnv, publicStorageUrl, safeBase64ToBuffer } from "@/lib/utils";
-import type { EdgeResponse, RenderResponse, SellerInput } from "@/lib/types";
+import type { EdgeResponse, RenderResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -13,28 +13,43 @@ export async function POST(req: Request) {
   const RENDER_URL = assertEnv("RENDER_SERVER_URL");
   const BUCKET = assertEnv("SUPABASE_BUCKET");
 
-  let input: SellerInput;
-  try {
-    input = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+  let productTitle: string;
+  let platform: string;
+  let additionalInfo: string;
+  let imageFiles: File[] = [];
+
+  // FormData or JSON 둘 다 지원
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData();
+    productTitle = (formData.get("product_title") as string) || "";
+    platform = (formData.get("platform") as string) || "";
+    additionalInfo = (formData.get("additional_info") as string) || "";
+    imageFiles = formData.getAll("images") as File[];
+  } else {
+    const body = await req.json();
+    productTitle = body.product_title || "";
+    platform = body.platform || "";
+    additionalInfo = body.additional_info || "";
   }
 
-  if (!input?.product_title || !input?.platform) {
+  if (!productTitle || !platform) {
     return NextResponse.json(
       { ok: false, error: "product_title and platform are required" },
       { status: 400 }
     );
   }
 
+  // 1) DB: generations 생성
   const { data: genRow, error: genErr } = await sb
     .from("generations")
     .insert({
       user_id: "00000000-0000-0000-0000-000000000000",
-      product_title: input.product_title,
-      platform: input.platform,
+      product_title: productTitle,
+      platform: platform,
       style: "trust_dense",
-      seller_input: input,
+      seller_input: { product_title: productTitle, platform, additional_info: additionalInfo },
       status: "generating",
     })
     .select("id")
@@ -49,19 +64,52 @@ export async function POST(req: Request) {
   const generationId = genRow.id as string;
 
   try {
-    const llmStart = Date.now();
+    // 2) 상품 사진 Storage 업로드
+    const uploadedImageUrls: string[] = [];
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `seller-photos/${generationId}/photo-${i}.${ext}`;
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, buffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+      if (!upErr) {
+        const url = `${assertEnv("SUPABASE_URL")}/storage/v1/object/public/${BUCKET}/${path}`;
+        uploadedImageUrls.push(url);
+      }
+    }
+
+    // seller_input에 image_urls 추가
+    if (uploadedImageUrls.length > 0) {
+      await sb.from("generations").update({
+        seller_input: {
+          product_title: productTitle,
+          platform,
+          additional_info: additionalInfo,
+          image_urls: uploadedImageUrls,
+        },
+      }).eq("id", generationId);
+    }
+
+    // 3) Edge Function: JSON 생성
     const edgeRes = await fetch(EDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        product_title: input.product_title,
-        platform: input.platform,
-        additional_info: input.additional_info ?? "",
+        product_title: productTitle,
+        platform: platform,
+        additional_info: additionalInfo,
       }),
     });
 
     const edgeJson = (await edgeRes.json()) as EdgeResponse;
-    const llmTimeMs = edgeJson.llm_time_ms ?? (Date.now() - llmStart);
+    const llmTimeMs = edgeJson.llm_time_ms ?? 0;
 
     if (!edgeRes.ok || edgeJson.status !== "complete" || !edgeJson.json) {
       await sb.from("generations").update({
@@ -76,6 +124,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // 4) Render: 이미지 생성
     await sb.from("generations").update({
       status: "rendering",
       generated_json: edgeJson.json,
@@ -85,11 +134,11 @@ export async function POST(req: Request) {
     const renderRes = await fetch(RENDER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ json: edgeJson.json, platform: input.platform }),
+      body: JSON.stringify({ json: edgeJson.json, platform }),
     });
 
     const renderJson = (await renderRes.json()) as RenderResponse;
-    const renderTimeMs = renderJson.render_time_ms ?? (Date.now() - llmStart);
+    const renderTimeMs = renderJson.render_time_ms ?? 0;
 
     if (!renderRes.ok || !renderJson?.slides?.length) {
       await sb.from("generations").update({
@@ -104,6 +153,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // 5) 슬라이드 Storage 업로드 + generation_assets 저장
     const assetsToInsert: any[] = [];
     for (const s of renderJson.slides) {
       const buf = safeBase64ToBuffer(s.base64);
@@ -130,6 +180,7 @@ export async function POST(req: Request) {
     const { error: assetErr } = await sb.from("generation_assets").insert(assetsToInsert);
     if (assetErr) throw new Error(`DB insert generation_assets failed: ${assetErr.message}`);
 
+    // 6) 완료
     await sb.from("generations").update({
       status: "complete",
       render_time_ms: renderTimeMs,

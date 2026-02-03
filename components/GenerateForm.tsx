@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Platform } from "@/lib/types";
 import ProgressBox from "@/components/ProgressBox";
@@ -12,11 +12,16 @@ const EXAMPLE_INPUT = `1. 타겟/상황: 출근길 차 안에서 커피를 자�
 5. 불안/반박 포인트: 세척 어렵지 않나? 냄새 배지 않나? 무겁지 않나?
 6. 금지 표현: 최저가, 업계 1등, 무조건, 혁신적인`;
 
+const MAX_IMAGES = 3;
+
 export default function GenerateForm() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [productTitle, setProductTitle] = useState("");
   const [platform, setPlatform] = useState<Platform>("coupang");
   const [additionalInfo, setAdditionalInfo] = useState("");
+  const [images, setImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<string>("");
   const [showGuide, setShowGuide] = useState(false);
@@ -26,22 +31,47 @@ export default function GenerateForm() {
     setAdditionalInfo(EXAMPLE_INPUT);
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    const remaining = MAX_IMAGES - images.length;
+    const newFiles = files.slice(0, remaining);
+
+    if (newFiles.length === 0) return;
+
+    const updated = [...images, ...newFiles];
+    setImages(updated);
+
+    const newPreviews = newFiles.map((f) => URL.createObjectURL(f));
+    setPreviews((prev) => [...prev, ...newPreviews]);
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeImage(index: number) {
+    URL.revokeObjectURL(previews[index]);
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!productTitle.trim()) return;
 
     setLoading(true);
-    setStage("LLM JSON 생성 + 이미지 렌더링 중...");
+    setStage("이미지 업로드 중...");
 
     try {
+      const formData = new FormData();
+      formData.append("product_title", productTitle.trim());
+      formData.append("platform", platform);
+      formData.append("additional_info", additionalInfo.trim());
+      images.forEach((img) => formData.append("images", img));
+
+      setStage("LLM JSON 생성 + 이미지 렌더링 중...");
+
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_title: productTitle.trim(),
-          platform,
-          additional_info: additionalInfo.trim(),
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -89,6 +119,47 @@ export default function GenerateForm() {
         </div>
       </fieldset>
 
+      {/* 상품 사진 업로드 */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-medium">상품 사진 (최대 3장)</span>
+          <span className="text-xs text-gray-500">{images.length}/{MAX_IMAGES}</span>
+        </div>
+        <p className="text-xs text-gray-500 mb-2">실제 상품 사진을 올리면 결과물 품질이 올라갑니다. (선택)</p>
+
+        {/* 미리보기 */}
+        {previews.length > 0 && (
+          <div className="flex gap-3 mb-3 flex-wrap">
+            {previews.map((src, i) => (
+              <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
+                <img src={src} alt={`상품사진 ${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute top-1 right-1 bg-black bg-opacity-60 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-opacity-80"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {images.length < MAX_IMAGES && (
+          <label className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm cursor-pointer hover:bg-gray-50 transition-colors">
+            <span>📷 사진 추가</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+          </label>
+        )}
+      </div>
+
       {/* 추가정보 + 가이드 */}
       <div>
         <div className="flex items-center justify-between mb-1">
@@ -111,7 +182,6 @@ export default function GenerateForm() {
           </div>
         </div>
 
-        {/* 6컷 입력 가이드 */}
         {showGuide && (
           <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700 space-y-2">
             <p className="font-semibold text-blue-800">📋 이 6가지를 적으면 결과물이 확 좋아집니다</p>
