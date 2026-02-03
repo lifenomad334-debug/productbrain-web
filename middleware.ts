@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-export async function middleware(req: NextRequest) {
+export function middleware(req: NextRequest) {
   // /generate 경로만 보호
   if (!req.nextUrl.pathname.startsWith("/generate")) {
     return NextResponse.next();
   }
 
-  // 쿠키에서 Supabase 세션 토큰 확인
+  // Supabase 세션 쿠키 확인 (sb-로 시작하는 쿠키가 있으면 로그인 상태)
   const allCookies = req.cookies.getAll();
-  const authCookie = allCookies.find(
-    (c) => c.name.includes("auth-token") || c.name.includes("sb-") && c.name.includes("-auth-token")
+  const hasSession = allCookies.some(
+    (c) => c.name.startsWith("sb-") && c.name.includes("auth-token")
   );
 
-  if (!authCookie) {
+  if (!hasSession) {
     const loginUrl = new URL("/login", req.url);
     return NextResponse.redirect(loginUrl);
   }
