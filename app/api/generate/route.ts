@@ -124,7 +124,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4) Render: 이미지 생성
+    // 4) Render: 이미지 생성 (image_urls 포함)
     await sb.from("generations").update({
       status: "rendering",
       generated_json: edgeJson.json,
@@ -134,7 +134,11 @@ export async function POST(req: Request) {
     const renderRes = await fetch(RENDER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ json: edgeJson.json, platform }),
+      body: JSON.stringify({
+        json: edgeJson.json,
+        platform,
+        image_urls: uploadedImageUrls,
+      }),
     });
 
     const renderJson = (await renderRes.json()) as RenderResponse;
@@ -158,9 +162,9 @@ export async function POST(req: Request) {
     for (const s of renderJson.slides) {
       const buf = safeBase64ToBuffer(s.base64);
       const fileSizeKb = Math.round(buf.byteLength / 1024);
-      const path = `${generationId}/${s.slide_id}.png`;
+      const storagePath = `${generationId}/${s.slide_id}.png`;
 
-      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, buf, {
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, buf, {
         contentType: "image/png",
         upsert: true,
       });
@@ -170,7 +174,7 @@ export async function POST(req: Request) {
       assetsToInsert.push({
         generation_id: generationId,
         slide_id: s.slide_id,
-        image_url: publicStorageUrl(path),
+        image_url: publicStorageUrl(storagePath),
         width: s.width,
         height: s.height,
         file_size_kb: fileSizeKb,
