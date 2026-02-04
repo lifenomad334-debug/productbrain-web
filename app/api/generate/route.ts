@@ -129,7 +129,7 @@ export async function POST(req: Request) {
     }
 
     const llmTimeMs = edgeJson.llm_time_ms ?? 0;
-    console.log("EDGE LLM TIME:", llmTimeMs, "STATUS:", edgeJson.status);
+    console.log("EDGE LLM TIME:", llmTimeMs, "STATUS:", edgeJson.status, "ATTEMPTS:", (edgeJson as any).attempts);
 
     if (!edgeRes.ok || !edgeJson.json) {
       console.log("EDGE FAILED - edgeRes.ok:", edgeRes.ok, "edgeJson.json exists:", !!edgeJson.json, "edgeJson.error:", edgeJson.error);
@@ -142,6 +142,36 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { ok: false, generation_id: generationId, status: "failed", error: edgeJson.error ?? "LLM failed" },
         { status: 500 }
+      );
+    }
+
+    // === VALIDATION GATE: validation error가 있으면 렌더 차단 ===
+    const validation = (edgeJson as any).validation;
+    const validationErrors = validation?.errors ?? [];
+    const isValidationFail = 
+      edgeJson.status === "validation_warning" ||
+      validation?.valid === false ||
+      validationErrors.length > 0;
+
+    if (isValidationFail) {
+      console.log("VALIDATION FAILED:", JSON.stringify(validationErrors));
+      await sb.from("generations").update({
+        status: "failed",
+        generated_json: edgeJson.json,
+        error_message: `Validation failed (${validationErrors.length} errors): ${validationErrors.slice(0, 3).join('; ')}`,
+        llm_time_ms: llmTimeMs,
+      }).eq("id", generationId);
+
+      return NextResponse.json(
+        { 
+          ok: false, 
+          generation_id: generationId, 
+          status: "validation_failed", 
+          errors: validationErrors,
+          warnings: validation?.warnings ?? [],
+          attempts: (edgeJson as any).attempts ?? 1,
+        },
+        { status: 422 }
       );
     }
 
