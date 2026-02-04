@@ -149,7 +149,7 @@ export async function POST(req: Request) {
     const validation = (edgeJson as any).validation;
     const validationErrors = validation?.errors ?? [];
     const isValidationFail = 
-      edgeJson.status === "validation_warning" ||
+      (edgeJson.status as string) === "validation_warning" ||
       validation?.valid === false ||
       validationErrors.length > 0;
 
