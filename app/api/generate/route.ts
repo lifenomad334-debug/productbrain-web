@@ -18,7 +18,6 @@ export async function POST(req: Request) {
   let additionalInfo: string;
   let imageFiles: File[] = [];
 
-  // FormData or JSON 둘 다 지원
   const contentType = req.headers.get("content-type") || "";
 
   if (contentType.includes("multipart/form-data")) {
@@ -41,7 +40,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 1) DB: generations 생성
   const { data: genRow, error: genErr } = await sb
     .from("generations")
     .insert({
@@ -64,7 +62,6 @@ export async function POST(req: Request) {
   const generationId = genRow.id as string;
 
   try {
-    // 2) 상품 사진 Storage 업로드
     const uploadedImageUrls: string[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
@@ -85,7 +82,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // seller_input에 image_urls 추가
     if (uploadedImageUrls.length > 0) {
       await sb.from("generations").update({
         seller_input: {
@@ -98,6 +94,7 @@ export async function POST(req: Request) {
     }
 
     // 3) Edge Function: JSON 생성
+    console.log("EDGE CALL START:", EDGE_URL);
     const edgeRes = await fetch(EDGE_URL, {
       method: "POST",
       headers: {
@@ -111,8 +108,27 @@ export async function POST(req: Request) {
       }),
     });
 
-    const edgeJson = (await edgeRes.json()) as EdgeResponse;
+    const edgeText = await edgeRes.text();
+    console.log("EDGE RAW STATUS:", edgeRes.status);
+    console.log("EDGE RAW BODY (first 500):", edgeText.substring(0, 500));
+
+    let edgeJson: EdgeResponse;
+    try {
+      edgeJson = JSON.parse(edgeText) as EdgeResponse;
+    } catch (parseErr) {
+      console.error("EDGE JSON PARSE FAILED:", edgeText.substring(0, 500));
+      await sb.from("generations").update({
+        status: "failed",
+        error_message: `Edge JSON parse failed: ${edgeText.substring(0, 200)}`,
+      }).eq("id", generationId);
+      return NextResponse.json(
+        { ok: false, generation_id: generationId, status: "failed", error: `Edge JSON parse failed: ${edgeText.substring(0, 200)}` },
+        { status: 500 }
+      );
+    }
+
     const llmTimeMs = edgeJson.llm_time_ms ?? 0;
+    console.log("EDGE LLM TIME:", llmTimeMs, "STATUS:", edgeJson.status);
 
     if (!edgeRes.ok || !edgeJson.json) {
       await sb.from("generations").update({
@@ -127,13 +143,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4) Render: 이미지 생성 (image_urls 포함)
+    // 4) Render
     await sb.from("generations").update({
       status: "rendering",
       generated_json: edgeJson.json,
       llm_time_ms: llmTimeMs,
     }).eq("id", generationId);
 
+    console.log("RENDER CALL START:", RENDER_URL);
     const renderRes = await fetch(RENDER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -144,8 +161,27 @@ export async function POST(req: Request) {
       }),
     });
 
-    const renderJson = (await renderRes.json()) as RenderResponse;
+    const renderText = await renderRes.text();
+    console.log("RENDER RAW STATUS:", renderRes.status);
+    console.log("RENDER RAW BODY (first 300):", renderText.substring(0, 300));
+
+    let renderJson: RenderResponse;
+    try {
+      renderJson = JSON.parse(renderText) as RenderResponse;
+    } catch (renderParseErr) {
+      console.error("RENDER JSON PARSE FAILED:", renderText.substring(0, 300));
+      await sb.from("generations").update({
+        status: "failed",
+        error_message: `Render JSON parse failed: ${renderText.substring(0, 200)}`,
+      }).eq("id", generationId);
+      return NextResponse.json(
+        { ok: false, generation_id: generationId, status: "failed", error: `Render JSON parse failed: ${renderText.substring(0, 200)}` },
+        { status: 500 }
+      );
+    }
+
     const renderTimeMs = renderJson.render_time_ms ?? 0;
+    console.log("RENDER TIME:", renderTimeMs, "SLIDES:", renderJson?.slides?.length);
 
     if (!renderRes.ok || !renderJson?.slides?.length) {
       await sb.from("generations").update({
@@ -160,7 +196,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5) 슬라이드 Storage 업로드 + generation_assets 저장
+    // 5) 슬라이드 Storage 업로드
     const assetsToInsert: any[] = [];
     for (const s of renderJson.slides) {
       const buf = safeBase64ToBuffer(s.base64);
@@ -193,6 +229,8 @@ export async function POST(req: Request) {
       render_time_ms: renderTimeMs,
     }).eq("id", generationId);
 
+    console.log("GENERATION COMPLETE:", generationId, "TOTAL:", Date.now() - startedAt, "ms");
+
     return NextResponse.json({
       ok: true,
       generation_id: generationId,
@@ -200,6 +238,7 @@ export async function POST(req: Request) {
       total_time_ms: Date.now() - startedAt,
     });
   } catch (e: any) {
+    console.error("GENERATION ERROR:", e?.message);
     await sb.from("generations").update({
       status: "failed",
       error_message: e?.message ?? "Unknown error",
