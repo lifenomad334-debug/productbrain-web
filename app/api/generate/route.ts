@@ -95,6 +95,7 @@ export async function POST(req: Request) {
 
     // 3) Edge Function: JSON 생성
     console.log("EDGE CALL START:", EDGE_URL);
+    console.log("EDGE CALL BODY:", JSON.stringify({ product_title: productTitle, platform, additional_info: additionalInfo }));
     const edgeRes = await fetch(EDGE_URL, {
       method: "POST",
       headers: {
@@ -131,6 +132,7 @@ export async function POST(req: Request) {
     console.log("EDGE LLM TIME:", llmTimeMs, "STATUS:", edgeJson.status);
 
     if (!edgeRes.ok || !edgeJson.json) {
+      console.log("EDGE FAILED - edgeRes.ok:", edgeRes.ok, "edgeJson.json exists:", !!edgeJson.json, "edgeJson.error:", edgeJson.error);
       await sb.from("generations").update({
         status: "failed",
         error_message: edgeJson.error ?? `Edge function failed (${edgeRes.status})`,

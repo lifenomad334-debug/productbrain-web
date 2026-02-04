@@ -51,7 +51,27 @@ function inferCategoryKey(input: any): string | null {
 }
 
 // -----------------------------
-// 3) System prompt (v5.2 + selection_reasons)
+// 3) Emergency JSON extractor
+// -----------------------------
+function extractJsonObject(text: string): string {
+  let t = text.trim();
+
+  // 1) Remove code fences
+  if (t.startsWith('```')) {
+    t = t.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  }
+
+  // 2) Extract between first { and last }
+  const first = t.indexOf('{');
+  const last = t.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    return t.slice(first, last + 1);
+  }
+  return t;
+}
+
+// -----------------------------
+// 4) System prompt (v5.2 + selection_reasons)
 // -----------------------------
 const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카피라이터이자 데이터 구조 설계자입니다.
 셀러의 제품 정보를 받아서, v5.2 JSON 스키마에 정확히 맞는 상세페이지 데이터를 생성하세요.
@@ -208,7 +228,7 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
 
 
 // -----------------------------
-// 4) User prompt builder
+// 5) User prompt builder
 // -----------------------------
 function buildUserPrompt(input: any, categoryKey: string | null): string {
   let prompt =
@@ -255,19 +275,17 @@ function buildUserPrompt(input: any, categoryKey: string | null): string {
 
 
 // -----------------------------
-// 5) Validator
+// 6) Validator
 // -----------------------------
 function validateProductJSON(json: any): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Required fields (core only)
   const requiredRoot = ['schema_version', 'platform', 'hero', 'benefits', 'details', 'specs', 'cta'];
   requiredRoot.forEach(key => {
     if (!json[key]) errors.push(`필수 필드 누락: ${key}`);
   });
 
-  // Recommended fields (warnings, not errors)
   const recommended = ['selection_reasons', 'category_key', 'section_toggles'];
   recommended.forEach(key => {
     if (!json[key]) warnings.push(`권장 필드 누락: ${key}`);
@@ -275,12 +293,10 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
 
   if (json.schema_version && json.schema_version !== '5.2') errors.push(`schema_version이 5.2가 아님`);
 
-  // Placeholder detection
   const placeholderPattern = /\{\{.*?\}\}|\[placeholder\]|\[TBD\]|\[TODO\]/gi;
   const allText = JSON.stringify(json);
   if (placeholderPattern.test(allText)) errors.push('Placeholder 발견');
 
-  // Prohibited claims
   const prohibited = ['치료', '완치', '의학적 효능', '100% 보장', '100% 효과', '세계 최초', '업계 최고', '무조건', '부작용 없'];
   const jsonCopy = { ...json };
   delete jsonCopy.seller_overrides;
@@ -289,7 +305,6 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
     if (contentText.includes(word)) errors.push(`금지 표현: "${word}"`);
   });
 
-  // Length checks
   const lc: [string, any, number][] = [
     ['hero.product_title', json.hero?.product_title, 40],
     ['hero.hook_line', json.hero?.hook_line, 60],
@@ -302,22 +317,18 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
       errors.push(`글자수 초과: ${f} (${(v as string).length}>${m})`);
   });
 
-  // social_proof should NOT exist
   if (json.social_proof) warnings.push('social_proof가 생성됨 — selection_reasons로 대체 권장');
 
-  // selection_reasons validation
   const reasons = json.selection_reasons?.items;
   if (reasons) {
     if (!Array.isArray(reasons)) warnings.push('selection_reasons.items는 배열이어야 함');
     else if (reasons.length !== 3) warnings.push(`selection_reasons.items는 3개 권장 (현재 ${reasons.length})`);
   }
 
-  // Electronics-specific checks
   if (json.category_key === 'electronics') {
     if (json.specs?.comparison?.enabled !== true) {
       warnings.push('전자/가전: specs.comparison.enabled=true 권장');
     }
-    // Brand name detection in comparison
     const compItems = json.specs?.comparison?.items ?? [];
     const compText = JSON.stringify(compItems);
     const brandPattern = /(삼성|애플|lg|샤오미|sony|소니|갤럭시|아이폰|맥북)/i;
@@ -326,7 +337,6 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
     }
   }
 
-  // Tone warnings
   const nowPattern = /이제\s*(바로|곧|당장)?\s*(하세요|해보세요|사용하세요|확인하세요)/g;
   const imperativePattern = /(하세요|해보세요|바로\s*하세요)/g;
   const hitsNow = (contentText.match(nowPattern) ?? []).length;
@@ -339,7 +349,7 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
 
 
 // -----------------------------
-// 6) Main server
+// 7) Main server
 // -----------------------------
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -377,7 +387,6 @@ serve(async (req: Request) => {
       ? `${SYSTEM_PROMPT}\n\n${categoryPreset}`
       : SYSTEM_PROMPT;
 
-    // Build user prompt
     const userPrompt = buildUserPrompt(body, categoryKey);
     const start = Date.now();
 
@@ -391,8 +400,8 @@ serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 3200,
-        temperature: 0.5,
+        max_tokens: 4096,
+        temperature: 0.3,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }),
@@ -407,24 +416,46 @@ serve(async (req: Request) => {
     }
 
     const data = await response.json();
+    const llm_time_ms = Date.now() - start;
+
+    // Debug: log stop_reason
+    const stopReason = data.stop_reason ?? 'unknown';
+    console.log('CLAUDE stop_reason:', stopReason);
+
     const rawText = (data.content ?? [])
       .filter((c: any) => c.type === 'text')
       .map((c: any) => c.text)
       .join('');
-    const llm_time_ms = Date.now() - start;
 
-    // Parse JSON
-    let cleaned = rawText.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    console.log('RAW length:', rawText.length);
+    console.log('RAW tail(200):', rawText.slice(-200));
+
+    // If stopped due to max_tokens, JSON is likely truncated
+    if (stopReason === 'max_tokens') {
+      console.warn('WARNING: Claude output was truncated (max_tokens reached)');
     }
+
+    // Emergency JSON extraction
+    const candidate = extractJsonObject(rawText);
+    console.log('CANDIDATE length:', candidate.length);
 
     let json: any;
     try {
-      json = JSON.parse(cleaned);
-    } catch (_e) {
+      json = JSON.parse(candidate);
+    } catch (_e: any) {
+      console.error('JSON PARSE ERROR:', _e?.message);
+      console.error('CANDIDATE head(300):', candidate.substring(0, 300));
+      console.error('CANDIDATE tail(300):', candidate.slice(-300));
       return new Response(
-        JSON.stringify({ error: 'JSON 파싱 실패', raw: cleaned.substring(0, 500) }),
+        JSON.stringify({
+          error: 'JSON 파싱 실패',
+          parse_error: _e?.message,
+          stop_reason: stopReason,
+          raw_length: rawText.length,
+          candidate_length: candidate.length,
+          raw_head: candidate.substring(0, 300),
+          raw_tail: candidate.slice(-300),
+        }),
         { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }
@@ -445,6 +476,7 @@ serve(async (req: Request) => {
       }
     );
   } catch (err: any) {
+    console.error('UNHANDLED ERROR:', err.message);
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
