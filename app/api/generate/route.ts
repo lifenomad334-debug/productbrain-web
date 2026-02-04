@@ -100,7 +100,10 @@ export async function POST(req: Request) {
     // 3) Edge Function: JSON 생성
     const edgeRes = await fetch(EDGE_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${assertEnv("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
       body: JSON.stringify({
         product_title: productTitle,
         platform: platform,
@@ -111,7 +114,7 @@ export async function POST(req: Request) {
     const edgeJson = (await edgeRes.json()) as EdgeResponse;
     const llmTimeMs = edgeJson.llm_time_ms ?? 0;
 
-    if (!edgeRes.ok || edgeJson.status !== "complete" || !edgeJson.json) {
+    if (!edgeRes.ok || !edgeJson.json) {
       await sb.from("generations").update({
         status: "failed",
         error_message: edgeJson.error ?? `Edge function failed (${edgeRes.status})`,
