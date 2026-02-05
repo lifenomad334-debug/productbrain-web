@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (false && profile.credits <= 0) { // 베타 기간 무제한 - 유료화 시 false && 제거
+    if (false && profile!.credits <= 0) { // 베타 기간 무제한 - 유료화 시 false && 제거
       return NextResponse.json(
         {
           ok: false,
