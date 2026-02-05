@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { assertEnv, publicStorageUrl, safeBase64ToBuffer } from "@/lib/utils";
 import type { EdgeResponse, RenderResponse } from "@/lib/types";
+import archiver from "archiver";
+import { Readable, PassThrough } from "stream";
 
 export const runtime = "nodejs";
 
@@ -16,7 +18,9 @@ export async function POST(req: Request) {
   let productTitle: string;
   let platform: string;
   let additionalInfo: string;
+  let category: string;
   let imageFiles: File[] = [];
+  let userId: string | null = null;
 
   const contentType = req.headers.get("content-type") || "";
 
@@ -25,12 +29,16 @@ export async function POST(req: Request) {
     productTitle = (formData.get("product_title") as string) || "";
     platform = (formData.get("platform") as string) || "";
     additionalInfo = (formData.get("additional_info") as string) || "";
+    category = (formData.get("category") as string) || "electronics";
     imageFiles = formData.getAll("images") as File[];
+    userId = (formData.get("user_id") as string) || null;
   } else {
     const body = await req.json();
     productTitle = body.product_title || "";
     platform = body.platform || "";
     additionalInfo = body.additional_info || "";
+    category = body.category || "electronics";
+    userId = body.user_id || null;
   }
 
   if (!productTitle || !platform) {
@@ -40,15 +48,70 @@ export async function POST(req: Request) {
     );
   }
 
+  /* ── 화이트리스트 체크 ── */
+  if (userId) {
+    const { data: userAuth } = await sb.auth.admin.getUserById(userId);
+    const userEmail = userAuth?.user?.email;
+
+    if (userEmail) {
+      const { data: whitelisted } = await sb
+        .from("beta_whitelist")
+        .select("id")
+        .eq("email", userEmail.toLowerCase().trim())
+        .single();
+
+      if (!whitelisted) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "not_whitelisted",
+            message: "베타 테스트 승인이 필요합니다. 신청 폼을 통해 먼저 신청해주세요.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
+  /* ── 크레딧 확인 ── */
+  if (userId) {
+    const { data: profile, error: profileErr } = await sb
+      .from("profiles")
+      .select("credits")
+      .eq("id", userId)
+      .single();
+
+    if (profileErr || !profile) {
+      return NextResponse.json(
+        { ok: false, error: "user_not_found", message: "사용자 프로필을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    if (profile.credits <= 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "no_credits",
+          message: "무료 생성 크레딧을 모두 사용했습니다.",
+          credits: 0,
+        },
+        { status: 403 }
+      );
+    }
+  }
+
   const { data: genRow, error: genErr } = await sb
     .from("generations")
     .insert({
-      user_id: "00000000-0000-0000-0000-000000000000",
+      user_id: userId || "00000000-0000-0000-0000-000000000000",
       product_title: productTitle,
       platform: platform,
+      category: category,
       style: "trust_dense",
-      seller_input: { product_title: productTitle, platform, additional_info: additionalInfo },
+      seller_input: { product_title: productTitle, platform, category, additional_info: additionalInfo },
       status: "generating",
+      edits_remaining: 0,
     })
     .select("id")
     .single();
@@ -145,10 +208,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // === VALIDATION GATE: validation error가 있으면 렌더 차단 ===
+    // === VALIDATION GATE ===
     const validation = (edgeJson as any).validation;
     const validationErrors = validation?.errors ?? [];
-    const isValidationFail = 
+    const isValidationFail =
       (edgeJson.status as string) === "validation_warning" ||
       validation?.valid === false ||
       validationErrors.length > 0;
@@ -163,10 +226,10 @@ export async function POST(req: Request) {
       }).eq("id", generationId);
 
       return NextResponse.json(
-        { 
-          ok: false, 
-          generation_id: generationId, 
-          status: "validation_failed", 
+        {
+          ok: false,
+          generation_id: generationId,
+          status: "validation_failed",
           errors: validationErrors,
           warnings: validation?.warnings ?? [],
           attempts: (edgeJson as any).attempts ?? 1,
@@ -255,19 +318,71 @@ export async function POST(req: Request) {
     const { error: assetErr } = await sb.from("generation_assets").insert(assetsToInsert);
     if (assetErr) throw new Error(`DB insert generation_assets failed: ${assetErr.message}`);
 
-    // 6) 완료
+    // 6) ZIP 생성 + Storage 업로드
+    let zipUrl: string | null = null;
+    try {
+      const zipBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        const passthrough = new PassThrough();
+        
+        passthrough.on("data", (chunk: Buffer) => chunks.push(chunk));
+        passthrough.on("end", () => resolve(Buffer.concat(chunks)));
+        passthrough.on("error", reject);
+
+        const archive = archiver("zip", { zlib: { level: 5 } });
+        archive.on("error", reject);
+        archive.pipe(passthrough);
+
+        // 각 슬라이드 이미지를 ZIP에 추가
+        for (const s of renderJson.slides) {
+          const buf = safeBase64ToBuffer(s.base64);
+          archive.append(buf, { name: `${s.slide_id}.png` });
+        }
+
+        archive.finalize();
+      });
+
+      const zipPath = `${generationId}/all-slides.zip`;
+      const { error: zipUpErr } = await sb.storage.from(BUCKET).upload(zipPath, zipBuffer, {
+        contentType: "application/zip",
+        upsert: true,
+      });
+
+      if (!zipUpErr) {
+        zipUrl = publicStorageUrl(zipPath);
+      } else {
+        console.error("ZIP UPLOAD ERROR:", zipUpErr.message);
+      }
+    } catch (zipErr: any) {
+      console.error("ZIP GENERATION ERROR:", zipErr?.message);
+      // ZIP 실패해도 전체 프로세스는 계속 진행
+    }
+
+    // 7) 완료 + 크레딧 차감 + 수정 3회 부여
     await sb.from("generations").update({
       status: "complete",
       render_time_ms: renderTimeMs,
+      edits_remaining: 3,
+      zip_url: zipUrl,
     }).eq("id", generationId);
 
-    console.log("GENERATION COMPLETE:", generationId, "TOTAL:", Date.now() - startedAt, "ms");
+    // 크레딧 차감 (로그인 유저만)
+    if (userId) {
+      const { error: creditErr } = await sb.rpc("decrement_credits", { user_id_input: userId });
+      if (creditErr) {
+        console.error("CREDIT DECREMENT ERROR:", creditErr.message);
+      }
+    }
+
+    console.log("GENERATION COMPLETE:", generationId, "ZIP:", !!zipUrl, "TOTAL:", Date.now() - startedAt, "ms");
 
     return NextResponse.json({
       ok: true,
       generation_id: generationId,
       status: "complete",
       total_time_ms: Date.now() - startedAt,
+      edits_remaining: 3,
+      zip_url: zipUrl,
     });
   } catch (e: any) {
     console.error("GENERATION ERROR:", e?.message);

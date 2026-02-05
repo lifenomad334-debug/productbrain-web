@@ -212,7 +212,7 @@ function inferCategoryKey(input: any): string | null {
     '이어폰','헤드폰','스피커','모니터','케이블','허브','ssd','hdd','램','ram',
     '선풍기','서큘레이터','청소기','공기청정기','제습기','가습기','가전','전자',
     '스마트','블루투스','와이파이','wifi','usb','usbc','type-c','타입c',
-    '냉장고','에어컨','세탁기','건조기','전자레인지','로봇청소기',
+    '냉장고','에어컨','세탁기','건조기','로봇청소기',
     'galaxy','갤럭시','삼성','samsung','apple','애플','lg','소니','sony',
     '워치','watch','버즈','buds','에어팟','airpod','맥세이프','magsafe'
   ];
@@ -229,8 +229,8 @@ function inferCategoryKey(input: any): string | null {
     '두부','콩','식이섬유','저당','무설탕','글루텐프리'
   ];
 
-  if (electronicsKeywords.some(k => t.includes(k))) return 'electronics';
   if (foodKeywords.some(k => t.includes(k))) return 'food';
+  if (electronicsKeywords.some(k => t.includes(k))) return 'electronics';
   return null;
 }
 
@@ -524,7 +524,7 @@ function buildUserPrompt(input: any, categoryKey: string | null): string {
 // -----------------------------
 // 6) Validator
 // -----------------------------
-function validateProductJSON(json: any): { valid: boolean; errors: string[]; warnings: string[] } {
+function validateProductJSON(json: any, categoryKey?: string | null): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -611,7 +611,9 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
     warnings.push(`problem.bridge에 명령형 감지: "${bridge}" — 귀결형으로 변경 권장`);
   }
 
-  if (json.category_key === 'electronics') {
+  const effectiveCategory = categoryKey || json.category_key || null;
+
+  if (effectiveCategory === 'electronics') {
     if (json.specs?.comparison?.enabled !== true) {
       warnings.push('전자/가전: specs.comparison.enabled=true 권장');
     }
@@ -624,7 +626,7 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
   }
 
   // Food-specific validation
-  if (json.category_key === 'food') {
+  if (effectiveCategory === 'food') {
     if (json.specs?.comparison?.enabled !== true) {
       warnings.push('식품: specs.comparison.enabled=true 권장');
     }
@@ -642,7 +644,9 @@ function validateProductJSON(json: any): { valid: boolean; errors: string[]; war
 
     // === HARD FAIL: Details 블록 구조 검증 (한국어 라벨) ===
     const foodBlocks = json.details?.blocks ?? [];
-    if (foodBlocks.length === 3) {
+    if (foodBlocks.length !== 3) {
+      errors.push(`FOOD: details.blocks는 정확히 3개여야 함 (현재 ${foodBlocks.length}개)`);
+    } else {
       const b0 = foodBlocks[0], b1 = foodBlocks[1], b2 = foodBlocks[2];
 
       // 라벨 체크 (한국어 고정)
@@ -859,8 +863,11 @@ serve(async (req: Request) => {
       }
 
       // Validate
-      lastValidation = validateProductJSON(lastJson);
-      console.log(`Attempt ${attempt} validation: valid=${lastValidation.valid}, errors=${lastValidation.errors.length}, warnings=${lastValidation.warnings.length}`);
+      lastValidation = validateProductJSON(lastJson, categoryKey);
+      console.log(`Attempt ${attempt} validation: valid=${lastValidation.valid}, errors=${lastValidation.errors.length}, warnings=${lastValidation.warnings.length}, category=${categoryKey}`);
+      if (lastValidation.errors.length > 0) {
+        console.log(`Attempt ${attempt} errors:`, JSON.stringify(lastValidation.errors));
+      }
 
       if (lastValidation.valid || attempt === MAX_ATTEMPTS) {
         break; // success or last attempt — use this result

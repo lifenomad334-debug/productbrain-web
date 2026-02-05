@@ -11,23 +11,49 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function handleAuth() {
       try {
-        // Supabase가 URL hash에 세션 정보를 넣어줌
-        // supabaseBrowser가 자동으로 감지해서 세션 설정
-        const { data, error } = await supabaseBrowser.auth.getSession();
+        // 1) URL 해시에서 토큰 추출 시도
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          // hash를 파싱해서 세션 설정
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
 
-        if (error) {
-          setStatus("로그인 실패: " + error.message);
-          setTimeout(() => router.push("/login"), 2000);
-          return;
+          if (accessToken && refreshToken) {
+            const { error } = await supabaseBrowser.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (!error) {
+              setStatus("로그인 성공! 이동 중...");
+              router.push("/generate");
+              return;
+            }
+          }
         }
 
+        // 2) URL 파라미터에 code가 있는 경우 (PKCE flow)
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        if (code) {
+          const { error } = await supabaseBrowser.auth.exchangeCodeForSession(code);
+          if (!error) {
+            setStatus("로그인 성공! 이동 중...");
+            router.push("/generate");
+            return;
+          }
+        }
+
+        // 3) 이미 세션이 있는지 확인
+        const { data } = await supabaseBrowser.auth.getSession();
         if (data?.session) {
           setStatus("로그인 성공! 이동 중...");
           router.push("/generate");
           return;
         }
 
-        // 세션이 아직 없으면 onAuthStateChange로 대기
+        // 4) onAuthStateChange로 대기
         const { data: listener } = supabaseBrowser.auth.onAuthStateChange(
           (event, session) => {
             if (event === "SIGNED_IN" && session) {
@@ -37,14 +63,14 @@ export default function AuthCallbackPage() {
           }
         );
 
-        // 5초 후에도 안 되면 로그인 페이지로
+        // 8초 후에도 안 되면 로그인 페이지로
         setTimeout(() => {
           listener.subscription.unsubscribe();
           setStatus("로그인 시간 초과. 다시 시도해주세요.");
           router.push("/login");
-        }, 5000);
+        }, 8000);
       } catch (e) {
-        setStatus("오류가 발생했습니다.");
+        setStatus("오류가 발생했습니다. 다시 시도해주세요.");
         setTimeout(() => router.push("/login"), 2000);
       }
     }
@@ -55,8 +81,9 @@ export default function AuthCallbackPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="text-center space-y-4">
-        <div className="text-2xl">🔄</div>
+        <div className="text-2xl animate-spin">⏳</div>
         <p className="text-sm text-gray-600">{status}</p>
+        <p className="text-xs text-gray-400">잠시만 기다려주세요...</p>
       </div>
     </main>
   );
