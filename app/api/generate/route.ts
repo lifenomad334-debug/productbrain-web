@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (profile!.credits <= 0) {
+    if (false && profile!.credits <= 0) { // 베타 기간 무제한 - 유료화 시 false && 제거
       return NextResponse.json(
         {
           ok: false,
@@ -212,9 +212,14 @@ export async function POST(req: Request) {
     const validation = (edgeJson as any).validation;
     const validationErrors = validation?.errors ?? [];
     const isValidationFail =
-      (edgeJson.status as string) === "validation_warning" ||
-      validation?.valid === false ||
-      validationErrors.length > 0;
+      validation?.valid === false &&
+      validationErrors.length > 0 &&
+      (edgeJson.status as string) !== "validation_warning"; // warning은 통과
+
+    // warning은 로그만 남기고 진행
+    if ((edgeJson.status as string) === "validation_warning") {
+      console.log("VALIDATION WARNING (통과):", JSON.stringify(validationErrors));
+    }
 
     if (isValidationFail) {
       console.log("VALIDATION FAILED:", JSON.stringify(validationErrors));
