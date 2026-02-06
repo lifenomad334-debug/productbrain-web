@@ -371,6 +371,85 @@ export default function GenerateForm({
         </div>
       </fieldset>
 
+      {/* 상품 이미지 — 핵심 영역 */}
+      <div className="rounded-xl border-2 border-blue-300 bg-gradient-to-b from-blue-50 to-white p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-lg">📸</span>
+          <span className="text-sm font-bold text-neutral-900">
+            상품 이미지 업로드
+          </span>
+          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+            중요
+          </span>
+          <span className="ml-auto text-xs font-medium text-blue-700">
+            {images.length}장 업로드됨
+          </span>
+        </div>
+
+        <div className="mb-3 rounded-lg bg-blue-50 p-3">
+          <p className="text-sm font-medium text-blue-900 leading-relaxed">
+            이미지가 있으면 상세페이지 완성도가 확 올라갑니다!
+          </p>
+          <p className="mt-1 text-xs text-blue-700 leading-relaxed">
+            제품 사진, 사용 장면, 디테일 컷 등을 올려주세요.
+            직접 촬영한 사진이나 AI 이미지 생성 도구로 만든 이미지 모두 사용 가능합니다.
+            많이 올릴수록 각 컷에 맞는 이미지가 자동 배치됩니다.
+          </p>
+        </div>
+
+        {/* 이미지 가이드 태그 */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          {["대표 제품 사진", "사용 장면", "디테일/소재 컷", "패키지/구성품", "비교 사진"].map((tag) => (
+            <span key={tag} className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs text-blue-700">
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        {previews.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-3">
+            {previews.map((src, i) => (
+              <div
+                key={i}
+                className="relative h-24 w-24 overflow-hidden rounded-lg border-2 border-blue-200"
+              >
+                <img
+                  src={src}
+                  alt={`상품이미지 ${i + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-white px-5 py-3 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50">
+          <span className="text-lg">+</span>
+          <span>{images.length === 0 ? "이미지 업로드하기" : "이미지 더 추가하기"}</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageSelect}
+            className="hidden"
+          />
+        </label>
+
+        {images.length === 0 && (
+          <p className="mt-2 text-xs text-neutral-400">
+            * 이미지 없이도 생성은 가능하지만, 이미지가 비어있는 상세페이지가 만들어집니다
+          </p>
+        )}
+      </div>
+
       {/* 상품 카테고리 */}
       <fieldset>
         <legend className="mb-2 text-sm font-medium text-neutral-900">상품 카테고리</legend>
@@ -407,57 +486,6 @@ export default function GenerateForm({
           ))}
         </div>
       </fieldset>
-
-      {/* 상품 이미지 */}
-      <div>
-        <div className="mb-1 flex items-center justify-between">
-          <span className="text-sm font-medium text-neutral-900">
-            상품 이미지
-          </span>
-          <span className="text-xs text-neutral-500">
-            {images.length}장
-          </span>
-        </div>
-        <p className="mb-2 text-xs text-neutral-500">
-          실제 상품 이미지가 있으면 결과물 퀄리티가 올라갑니다 (선택)
-        </p>
-
-        {previews.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-3">
-            {previews.map((src, i) => (
-              <div
-                key={i}
-                className="relative h-24 w-24 overflow-hidden rounded-lg border border-neutral-200"
-              >
-                <img
-                  src={src}
-                  alt={`상품이미지 ${i + 1}`}
-                  className="h-full w-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2 text-sm transition-colors hover:bg-neutral-50">
-          <span>이미지 추가</span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleImageSelect}
-            className="hidden"
-          />
-        </label>
-      </div>
 
       {/* 컷별 입력 영역 */}
       <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-5">
