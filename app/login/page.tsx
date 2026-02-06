@@ -88,9 +88,18 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400">
-          비밀번호 없이, 이메일 링크로 안전하게 로그인됩니다.
-        </p>
+        <div className="text-center space-y-2">
+          <p className="text-xs text-gray-400">
+            비밀번호 없이, 이메일 링크로 안전하게 로그인됩니다.
+          </p>
+          <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              💡 <strong className="text-gray-600">로그인 방식 안내</strong><br />
+              매번 이메일로 로그인 링크를 받아 접속합니다.<br />
+              한번 로그인하면 브라우저를 닫아도 일정 기간 유지됩니다.
+            </p>
+          </div>
+        </div>
       </div>
     </main>
   );
