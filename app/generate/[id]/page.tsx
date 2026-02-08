@@ -124,14 +124,88 @@ function setNestedValue(obj: any, path: string, value: string): any {
   };
 }
 
-// 슬라이드 라벨
-const SLIDE_LABELS: Record<string, { label: string; emoji: string; desc: string }> = {
-  hero: { label: "히어로", emoji: "🎯", desc: "고객의 시선을 잡는 첫 화면" },
-  "problem-benefits": { label: "문제 + 혜택", emoji: "💡", desc: "고객 공감 + 해결책 제시" },
-  details: { label: "상세 설명", emoji: "📋", desc: "제품의 핵심 장점 3가지" },
-  "reasons-specs": { label: "선택 이유 + 사양", emoji: "📊", desc: "구매 근거 + 스펙 비교" },
-  faq: { label: "자주 묻는 질문", emoji: "❓", desc: "마지막 의문 해소" },
-  cta: { label: "구매 유도", emoji: "🛒", desc: "지금 행동하게 만드는 마무리" },
+// 슬라이드 라벨 + 설명 + 예시
+type SlideInfo = {
+  label: string;
+  emoji: string;
+  desc: string;
+  why: string;
+  goal: string;
+  examples: string[];
+};
+
+const SLIDE_LABELS: Record<string, SlideInfo> = {
+  hero: {
+    label: "히어로",
+    emoji: "🎯",
+    desc: "고객의 시선을 잡는 첫 화면",
+    why: "상세페이지에서 가장 먼저 보이는 영역입니다. 여기서 스크롤을 멈추지 않으면 나머지를 읽지 않습니다. 제품 설명이 아니라 '사용 장면'을 먼저 보여주면 읽을 이유가 생깁니다.",
+    goal: "고객이 스크롤을 멈추게 만드는 한 문장. 제품 설명이 아니라, 사용 장면이 바로 떠오르는 문장이 좋습니다.",
+    examples: [
+      "캠핑장에서 하루 종일 앉아도 허리가 편한 의자",
+      "3초 만에 펴고 접는, 진짜 간편한 캠핑의자",
+      "무거운 짐 없이 떠나는 가벼운 캠핑의 시작",
+    ],
+  },
+  "problem-benefits": {
+    label: "문제 + 혜택",
+    emoji: "💡",
+    desc: "고객 공감 + 해결책 제시",
+    why: "고객이 겪는 불편을 정확히 짚으면 '내 얘기'가 됩니다. 공감 → 해결책 순서로 보여주면 자연스럽게 제품에 관심을 갖게 됩니다.",
+    goal: "고객이 '이거 내 얘기네' 하고 고개를 끄덕이게 만드는 문장입니다. 기존 제품의 불편을 구체적인 상황으로 짚어주세요.",
+    examples: [
+      "캠핑의자가 무거워서 매번 차에 싣기 힘들었다면",
+      "오래 앉으면 허리가 아파서 자주 일어나야 했다면",
+      "접는 게 복잡해서 설치/철수가 스트레스였다면",
+    ],
+  },
+  details: {
+    label: "상세 설명",
+    emoji: "📋",
+    desc: "제품의 핵심 장점 3가지",
+    why: "상품의 핵심 장점을 구체적으로 보여주는 영역입니다. 숫자와 체감 변화를 함께 써야 설득력이 높아집니다.",
+    goal: "각 장점을 '체감할 수 있는 변화'로 설명하세요. 스펙 나열이 아니라, 고객이 직접 느낄 수 있는 차이를 써야 합니다.",
+    examples: [
+      "기존 캠핑의자 절반 무게인 1.2kg으로 한 손에 들립니다",
+      "120kg까지 안전하게 지지하는 알루미늄 프레임",
+      "등받이 각도 조절로 불멍할 때도, 식사할 때도 편안합니다",
+    ],
+  },
+  "reasons-specs": {
+    label: "선택 이유 + 사양",
+    emoji: "📊",
+    desc: "구매 근거 + 스펙 비교",
+    why: "구매를 고민하는 고객에게 '이 제품을 선택해야 하는 이유'를 논리적으로 제시합니다. 비교 데이터가 있으면 더 효과적입니다.",
+    goal: "'좋다'는 말을 믿어도 되는 이유를 제시하세요. 숫자, 조건, 비교 중 하나만 있어도 충분합니다.",
+    examples: [
+      "동급 제품 대비 30% 가벼운 무게",
+      "3년 연속 캠핑용품 판매 1위",
+      "10만 개 이상 판매된 검증된 제품",
+    ],
+  },
+  faq: {
+    label: "자주 묻는 질문",
+    emoji: "❓",
+    desc: "마지막 의문 해소",
+    why: "구매 직전의 마지막 걱정을 해소하는 영역입니다. 실제 고객이 자주 묻는 질문을 미리 답해주면 전환율이 올라갑니다.",
+    goal: "고객이 구매 직전에 궁금해할 질문을 미리 답하세요. '이 정도면 사도 괜찮겠다'는 안심을 주세요.",
+    examples: [
+      "Q: 정말 120kg까지 버텨요? → A: 알루미늄 프레임 + 이중 리벳 구조로 안전합니다",
+      "Q: 세탁 가능한가요? → A: 시트 분리 후 손세탁 가능합니다",
+    ],
+  },
+  cta: {
+    label: "구매 유도",
+    emoji: "🛒",
+    desc: "지금 행동하게 만드는 마무리",
+    why: "마지막으로 고객에게 '지금 사야 하는 이유'를 줍니다. 긴급성과 혜택을 동시에 전달하면 결정을 앞당길 수 있습니다.",
+    goal: "지금 결정해도 괜찮다는 확신을 주세요. 과한 할인보다 상황 정리형 문장이 효과적입니다.",
+    examples: [
+      "캠핑 시즌 한정 40% 할인",
+      "전용 캐리백 무료 증정",
+      "오늘 주문하면 내일 도착",
+    ],
+  },
 };
 
 // ============================================================
@@ -461,11 +535,9 @@ export default function ResultPage() {
                           {slideInfo.label}
                         </span>
                       </div>
-                      {slideInfo.desc && (
-                        <p className="mt-0.5 text-xs text-neutral-500">
-                          {slideInfo.desc}
-                        </p>
-                      )}
+                      <p className="mt-0.5 text-sm text-neutral-600">
+                        {slideInfo.desc}
+                      </p>
                     </div>
                   </div>
 
@@ -539,6 +611,43 @@ export default function ResultPage() {
                   {/* ============================================================ */}
                   {isEditing && editedJson && (
                     <div className="lg:w-1/2 border-t lg:border-t-0 lg:border-l border-blue-200 bg-gradient-to-b from-blue-50/50 to-white px-5 py-4 lg:max-h-[80vh] lg:overflow-y-auto">
+                      
+                      {/* 🎯 이 컷의 목표 — 눈에 띄게 */}
+                      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white font-bold">?</span>
+                          <span className="text-sm font-bold text-blue-900">왜 이 컷이 필요한가요?</span>
+                        </div>
+                        <p className="text-sm leading-relaxed text-blue-800">
+                          {slideInfo.why}
+                        </p>
+                      </div>
+
+                      <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="text-base">🎯</span>
+                          <span className="text-sm font-bold text-emerald-900">이 컷의 목표</span>
+                        </div>
+                        <p className="text-sm leading-relaxed text-emerald-800">
+                          {slideInfo.goal}
+                        </p>
+                        
+                        {/* 예시 */}
+                        <div className="mt-3 border-t border-emerald-200 pt-3">
+                          <div className="mb-1.5 flex items-center gap-1.5">
+                            <span className="text-xs">💡</span>
+                            <span className="text-xs font-semibold text-emerald-700">이런 문장이 좋아요</span>
+                          </div>
+                          <ul className="space-y-1">
+                            {slideInfo.examples.map((ex, i) => (
+                              <li key={i} className="text-sm text-emerald-700 leading-relaxed">
+                                • {ex}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
                       {/* 편집 영역 헤더 */}
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm">✏️</span>
