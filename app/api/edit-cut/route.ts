@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     // 1. generation 조회
     const { data: gen, error: genErr } = await sb
       .from("generations")
-      .select("id, user_id, generated_json")
+      .select("id, user_id, generated_json, platform, style, seller_input")
       .eq("id", generation_id)
       .single();
 
@@ -112,14 +112,18 @@ export async function POST(req: Request) {
     }
 
     // 렌더 서버는 /api/render 엔드포인트 사용
+    // seller_input에서 실제 업로드된 이미지 URL 가져오기
+    const sellerInput = gen.seller_input || {};
+    const imageUrls = sellerInput.image_urls || [];
+
     const renderRes = await fetch(`${renderUrl}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         json: updatedJson,
-        platform: "coupang", // TODO: generation에서 platform 가져오기
-        image_urls: updatedJson.product_images?.map((img: any) => img.url).filter(Boolean) || [],
-        design_style: "modern_red", // TODO: generation에서 style 가져오기
+        platform: gen.platform || "coupang",
+        image_urls: imageUrls,
+        design_style: sellerInput.design_style || "modern_red",
       }),
     });
 

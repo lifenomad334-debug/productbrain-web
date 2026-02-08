@@ -177,7 +177,8 @@ export default function ResultPage() {
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
   const [editedJson, setEditedJson] = useState<any>(null); // 수정 중인 JSON
   const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
-  const [editedFields, setEditedFields] = useState<Set<string>>(new Set()); // 변경된 필드 추적
+  const [editedFields, setEditedFields] = useState<Set<string>>(new Set());
+  const [activeTone, setActiveTone] = useState<Record<string, string>>({}); // 변경된 필드 추적
 
   // 이미지 교체
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -256,8 +257,8 @@ export default function ResultPage() {
         body: JSON.stringify({
           generation_id: generationId,
           slide_id: slideId,
-          // 전체 수정된 JSON의 해당 섹션 전달
           full_json_update: editedJson,
+          tweak: activeTone[slideId] || null,
         }),
       });
 
@@ -280,6 +281,7 @@ export default function ResultPage() {
       );
       setEditingSlideId(null);
       setEditedFields(new Set());
+      setActiveTone((prev) => ({ ...prev, [slideId]: "" }));
 
       // 성공 토스트 (alert 대신)
     } catch (err: any) {
@@ -600,9 +602,9 @@ export default function ResultPage() {
                         })}
                       </div>
 
-                      {/* 톤 조절 */}
+                      {/* 톤 조절 (향후 업데이트) */}
                       <div className="mb-3 flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs text-neutral-400">톤:</span>
+                        <span className="text-xs text-neutral-400">톤 조절:</span>
                         {[
                           { id: "shorter", label: "더 짧게" },
                           { id: "direct", label: "더 직설적으로" },
@@ -611,24 +613,14 @@ export default function ResultPage() {
                           <button
                             key={tone.id}
                             type="button"
-                            className="rounded-full border border-neutral-200 px-2.5 py-1 text-xs transition-colors hover:border-blue-400 hover:bg-blue-50"
-                            onClick={() => {
-                              fields.forEach((f) => {
-                                if (f.type === "textarea") {
-                                  const val = getNestedValue(editedJson, f.key);
-                                  if (val) {
-                                    handleFieldChange(
-                                      f.key,
-                                      `[${tone.label}] ${val.replace(/^\[.*?\]\s*/, "")}`
-                                    );
-                                  }
-                                }
-                              });
-                            }}
+                            disabled
+                            className="rounded-full border border-neutral-100 px-2.5 py-1 text-xs text-neutral-300 cursor-not-allowed"
+                            title="AI 톤 조절 기능 준비 중"
                           >
                             {tone.label}
                           </button>
                         ))}
+                        <span className="text-[10px] text-neutral-400">준비 중</span>
                       </div>
 
                       {/* 액션 버튼 */}
