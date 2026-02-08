@@ -366,7 +366,7 @@ export default function ResultPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 py-10">
-      <div className="container mx-auto max-w-4xl px-4">
+      <div className="container mx-auto max-w-6xl px-4">
         {/* 숨겨진 이미지 input */}
         <input
           ref={imageInputRef}
@@ -494,108 +494,115 @@ export default function ResultPage() {
                   </div>
                 </div>
 
-                {/* 이미지 */}
-                <div className="relative">
-                  <img
-                    src={asset.image_url}
-                    alt={`${slideInfo.label} - ${idx + 1}번째 컷`}
-                    className="w-full select-none"
-                    draggable={false}
-                    onContextMenu={(e) => e.preventDefault()}
-                  />
-                  {/* 워터마크 */}
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <div className="grid grid-cols-3 gap-8 opacity-5">
-                      {Array.from({ length: 9 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="rotate-[-30deg] text-xl font-bold text-black"
-                        >
-                          {generation.user_id?.substring(0, 8) || "PREVIEW"}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 로딩 오버레이 */}
-                  {saving && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                      <div className="text-center">
-                        <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-neutral-300 border-t-neutral-900 mx-auto" />
-                        <p className="text-sm font-medium text-neutral-700">
-                          재렌더링 중...
-                        </p>
+                {/* 이미지 + 편집 패널 (가로 레이아웃) */}
+                <div className={`${isEditing ? "flex flex-col lg:flex-row" : ""}`}>
+                  {/* 이미지 영역 */}
+                  <div className={`relative ${isEditing ? "lg:w-1/2 lg:sticky lg:top-4 lg:self-start" : ""}`}>
+                    <img
+                      src={asset.image_url}
+                      alt={`${slideInfo.label} - ${idx + 1}번째 컷`}
+                      className="w-full select-none"
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                    {/* 워터마크 */}
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="grid grid-cols-3 gap-8 opacity-5">
+                        {Array.from({ length: 9 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="rotate-[-30deg] text-xl font-bold text-black"
+                          >
+                            {generation.user_id?.substring(0, 8) || "PREVIEW"}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {/* ============================================================ */}
-                {/* 인라인 편집 패널 */}
-                {/* ============================================================ */}
-                {isEditing && editedJson && (
-                  <div className="border-t border-blue-200 bg-gradient-to-b from-blue-50/50 to-white px-6 py-5">
-                    {/* 편집 필드 그리드 */}
-                    <div className="mb-4 space-y-3">
-                      {fields.map((field) => {
-                        const currentValue = getNestedValue(
-                          editedJson,
-                          field.key
-                        );
-                        // 필드가 실제로 존재하지 않으면 스킵
-                        if (currentValue === "" && !getNestedValue(generation?.generated_json, field.key)) {
-                          return null;
-                        }
-                        const isChanged = editedFields.has(field.key);
+                    {/* 로딩 오버레이 */}
+                    {saving && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                        <div className="text-center">
+                          <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-neutral-300 border-t-neutral-900 mx-auto" />
+                          <p className="text-sm font-medium text-neutral-700">
+                            재렌더링 중...
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                        return (
-                          <div key={field.key} className="group">
-                            <label className="mb-1 flex items-center gap-2 text-xs font-medium text-neutral-600">
-                              <span>{field.label}</span>
-                              {isChanged && (
-                                <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
-                                  수정됨
-                                </span>
+                  {/* ============================================================ */}
+                  {/* 인라인 편집 패널 (오른쪽) */}
+                  {/* ============================================================ */}
+                  {isEditing && editedJson && (
+                    <div className="lg:w-1/2 border-t lg:border-t-0 lg:border-l border-blue-200 bg-gradient-to-b from-blue-50/50 to-white px-5 py-4 lg:max-h-[80vh] lg:overflow-y-auto">
+                      {/* 편집 영역 헤더 */}
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="text-sm">✏️</span>
+                        <span className="text-sm font-semibold text-neutral-800">텍스트 수정</span>
+                        {editedFields.size > 0 && (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                            {editedFields.size}개 수정됨
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 편집 필드 */}
+                      <div className="mb-4 space-y-2.5">
+                        {fields.map((field) => {
+                          const currentValue = getNestedValue(
+                            editedJson,
+                            field.key
+                          );
+                          if (currentValue === "" && !getNestedValue(generation?.generated_json, field.key)) {
+                            return null;
+                          }
+                          const isChanged = editedFields.has(field.key);
+
+                          return (
+                            <div key={field.key}>
+                              <label className="mb-0.5 flex items-center gap-1.5 text-xs font-medium text-neutral-500">
+                                <span>{field.label}</span>
+                                {isChanged && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                                )}
+                              </label>
+                              {field.type === "textarea" ? (
+                                <textarea
+                                  className={`w-full rounded-lg border p-2 text-sm leading-relaxed outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-200 ${
+                                    isChanged
+                                      ? "border-blue-300 bg-blue-50/40"
+                                      : "border-neutral-200 bg-white"
+                                  }`}
+                                  value={currentValue}
+                                  onChange={(e) =>
+                                    handleFieldChange(field.key, e.target.value)
+                                  }
+                                  rows={2}
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  className={`w-full rounded-lg border p-2 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-200 ${
+                                    isChanged
+                                      ? "border-blue-300 bg-blue-50/40"
+                                      : "border-neutral-200 bg-white"
+                                  }`}
+                                  value={currentValue}
+                                  onChange={(e) =>
+                                    handleFieldChange(field.key, e.target.value)
+                                  }
+                                />
                               )}
-                            </label>
-                            {field.type === "textarea" ? (
-                              <textarea
-                                className={`w-full rounded-lg border p-2.5 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                  isChanged
-                                    ? "border-blue-300 bg-blue-50/30"
-                                    : "border-neutral-200 bg-white"
-                                }`}
-                                value={currentValue}
-                                onChange={(e) =>
-                                  handleFieldChange(field.key, e.target.value)
-                                }
-                                rows={2}
-                              />
-                            ) : (
-                              <input
-                                type="text"
-                                className={`w-full rounded-lg border p-2.5 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                  isChanged
-                                    ? "border-blue-300 bg-blue-50/30"
-                                    : "border-neutral-200 bg-white"
-                                }`}
-                                value={currentValue}
-                                onChange={(e) =>
-                                  handleFieldChange(field.key, e.target.value)
-                                }
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                    {/* 톤 조절 버튼 + 재렌더링 */}
-                    <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-neutral-500">
-                          전체 톤:
-                        </span>
+                      {/* 톤 조절 */}
+                      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-neutral-400">톤:</span>
                         {[
                           { id: "shorter", label: "더 짧게" },
                           { id: "direct", label: "더 직설적으로" },
@@ -604,9 +611,8 @@ export default function ResultPage() {
                           <button
                             key={tone.id}
                             type="button"
-                            className="rounded-full border border-neutral-200 px-3 py-1 text-xs transition-colors hover:border-neutral-400 hover:bg-neutral-50"
+                            className="rounded-full border border-neutral-200 px-2.5 py-1 text-xs transition-colors hover:border-blue-400 hover:bg-blue-50"
                             onClick={() => {
-                              // 해당 슬라이드의 모든 textarea 필드에 톤 프리픽스 적용
                               fields.forEach((f) => {
                                 if (f.type === "textarea") {
                                   const val = getNestedValue(editedJson, f.key);
@@ -625,14 +631,15 @@ export default function ResultPage() {
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      {/* 액션 버튼 */}
+                      <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
                         <button
                           type="button"
                           onClick={() => {
                             setEditedJson(generation?.generated_json);
                             setEditedFields(new Set());
                           }}
-                          className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+                          className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 hover:bg-neutral-50"
                         >
                           초기화
                         </button>
@@ -640,16 +647,16 @@ export default function ResultPage() {
                           type="button"
                           onClick={() => submitEdit(asset.slide_id)}
                           disabled={saving || editedFields.size === 0}
-                          className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {saving
                             ? "재렌더링 중..."
-                            : `이 컷 재렌더링 (${editedFields.size}개 수정)`}
+                            : `재렌더링 (${editedFields.size}개 수정)`}
                         </button>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}
