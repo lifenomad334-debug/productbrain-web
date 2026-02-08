@@ -247,12 +247,11 @@ export default function ResultPage() {
   const [error, setError] = useState<string | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
-  // 편집 상태
-  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
-  const [editedJson, setEditedJson] = useState<any>(null); // 수정 중인 JSON
+  // 편집 상태 — 패널은 항상 노출, editingSlideId는 아코디언 접기용
+  const [editedJson, setEditedJson] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
   const [editedFields, setEditedFields] = useState<Set<string>>(new Set());
-  const [activeTone, setActiveTone] = useState<Record<string, string>>({}); // 변경된 필드 추적
+  const [activeTone, setActiveTone] = useState<Record<string, string>>({});
 
   // 이미지 교체
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -297,22 +296,6 @@ export default function ResultPage() {
     fetchGeneration();
   }, [generationId]);
 
-  // 편집 모드 토글
-  function toggleEdit(slideId: string) {
-    if (editingSlideId === slideId) {
-      // 닫기 — 변경사항 있으면 확인
-      if (editedFields.size > 0) {
-        if (!confirm("수정한 내용이 있습니다. 저장하지 않고 닫으시겠어요?")) return;
-        // 원래 JSON으로 되돌리기
-        setEditedJson(generation?.generated_json);
-        setEditedFields(new Set());
-      }
-      setEditingSlideId(null);
-    } else {
-      setEditingSlideId(slideId);
-    }
-  }
-
   // 필드 값 변경
   function handleFieldChange(fieldKey: string, value: string) {
     setEditedJson((prev: any) => setNestedValue(prev, fieldKey, value));
@@ -353,7 +336,6 @@ export default function ResultPage() {
       setGeneration((prev) =>
         prev ? { ...prev, generated_json: editedJson } : prev
       );
-      setEditingSlideId(null);
       setEditedFields(new Set());
       setActiveTone((prev) => ({ ...prev, [slideId]: "" }));
 
@@ -442,7 +424,7 @@ export default function ResultPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 py-10">
-      <div className="container mx-auto max-w-6xl px-4">
+      <div className="container mx-auto max-w-7xl px-4">
         {/* 숨겨진 이미지 input */}
         <input
           ref={imageInputRef}
@@ -453,29 +435,16 @@ export default function ResultPage() {
         />
 
         {/* 상단 안내 배너 */}
-        <div className="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
-          <div className="mb-3 flex items-center gap-2">
+        <div className="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5">
+          <div className="flex items-center gap-3">
             <span className="text-2xl">✏️</span>
-            <h2 className="text-lg font-bold text-blue-900">
-              텍스트를 직접 수정하세요
-            </h2>
-          </div>
-          <p className="text-sm leading-relaxed text-blue-800">
-            각 컷의 <strong>"편집"</strong> 버튼을 눌러 문장을 바로 수정할 수 있습니다.
-            수정 후 <strong>"재렌더링"</strong>을 누르면 새 이미지가 생성됩니다.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-4 text-sm">
-            <div className="flex items-center gap-1.5 text-green-700">
-              <span>✔</span>
-              <span>문장 직접 수정</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-green-700">
-              <span>✔</span>
-              <span>톤 조절 (짧게/직설적/고급)</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-green-700">
-              <span>✔</span>
-              <span>이미지 교체</span>
+            <div>
+              <h2 className="text-base font-bold text-blue-900">
+                각 컷의 문장을 직접 수정하세요
+              </h2>
+              <p className="mt-0.5 text-sm text-blue-700">
+                오른쪽 패널에서 바로 수정 → "재렌더링" 클릭 → 새 이미지 생성
+              </p>
             </div>
           </div>
         </div>
@@ -510,17 +479,12 @@ export default function ResultPage() {
               desc: "",
             };
             const fields = SLIDE_FIELDS[asset.slide_id] || [];
-            const isEditing = editingSlideId === asset.slide_id;
             const saving = isSaving[asset.slide_id];
 
             return (
               <div
                 key={asset.slide_id}
-                className={`rounded-2xl border bg-white transition-shadow ${
-                  isEditing
-                    ? "border-blue-300 shadow-lg shadow-blue-100"
-                    : "border-neutral-200"
-                }`}
+                className="rounded-2xl border border-neutral-200 bg-white"
               >
                 {/* 컷 헤더 */}
                 <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
@@ -541,37 +505,21 @@ export default function ResultPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* 이미지 교체 버튼 */}
-                    <button
-                      type="button"
-                      onClick={() => handleImageReplace(asset.slide_id)}
-                      disabled={saving}
-                      className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:opacity-40"
-                    >
-                      🖼️ 이미지 교체
-                    </button>
-
-                    {/* 편집 토글 */}
-                    <button
-                      type="button"
-                      onClick={() => toggleEdit(asset.slide_id)}
-                      disabled={saving}
-                      className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-                        isEditing
-                          ? "bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
-                          : "bg-neutral-900 text-white hover:bg-neutral-800"
-                      }`}
-                    >
-                      {isEditing ? "닫기" : "✏️ 편집"}
-                    </button>
-                  </div>
+                  {/* 이미지 교체 버튼만 */}
+                  <button
+                    type="button"
+                    onClick={() => handleImageReplace(asset.slide_id)}
+                    disabled={saving}
+                    className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:opacity-40"
+                  >
+                    🖼️ 이미지 교체
+                  </button>
                 </div>
 
-                {/* 이미지 + 편집 패널 (가로 레이아웃) */}
-                <div className={`${isEditing ? "flex flex-col lg:flex-row" : ""}`}>
-                  {/* 이미지 영역 */}
-                  <div className={`relative ${isEditing ? "lg:w-1/2 lg:sticky lg:top-4 lg:self-start" : ""}`}>
+                {/* 이미지 + 편집 패널 (항상 가로 레이아웃) */}
+                <div className="flex flex-col lg:flex-row">
+                  {/* 이미지 영역 — 고정 너비 */}
+                  <div className="relative lg:w-[480px] lg:min-w-[480px] lg:sticky lg:top-4 lg:self-start">
                     <img
                       src={asset.image_url}
                       alt={`${slideInfo.label} - ${idx + 1}번째 컷`}
@@ -607,10 +555,10 @@ export default function ResultPage() {
                   </div>
 
                   {/* ============================================================ */}
-                  {/* 인라인 편집 패널 (오른쪽) */}
+                  {/* 인라인 편집 패널 (오른쪽 — 항상 노출) */}
                   {/* ============================================================ */}
-                  {isEditing && editedJson && (
-                    <div className="lg:w-1/2 border-t lg:border-t-0 lg:border-l border-blue-200 bg-gradient-to-b from-blue-50/50 to-white px-5 py-4 lg:max-h-[80vh] lg:overflow-y-auto">
+                  {editedJson && (
+                    <div className="flex-1 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-gradient-to-b from-slate-50/80 to-white px-5 py-4 lg:max-h-[85vh] lg:overflow-y-auto">
                       
                       {/* 🎯 이 컷의 목표 — 눈에 띄게 */}
                       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
