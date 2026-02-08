@@ -659,27 +659,6 @@ export default function ResultPage() {
                         })}
                       </div>
 
-                      {/* 톤 조절 (향후 업데이트) */}
-                      <div className="mb-3 flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs text-neutral-400">톤 조절:</span>
-                        {[
-                          { id: "shorter", label: "더 짧게" },
-                          { id: "direct", label: "더 직설적으로" },
-                          { id: "premium", label: "더 고급스럽게" },
-                        ].map((tone) => (
-                          <button
-                            key={tone.id}
-                            type="button"
-                            disabled
-                            className="rounded-full border border-neutral-100 px-2.5 py-1 text-xs text-neutral-300 cursor-not-allowed"
-                            title="AI 톤 조절 기능 준비 중"
-                          >
-                            {tone.label}
-                          </button>
-                        ))}
-                        <span className="text-[10px] text-neutral-400">준비 중</span>
-                      </div>
-
                       {/* 액션 버튼 */}
                       <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
                         <button
