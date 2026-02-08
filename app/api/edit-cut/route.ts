@@ -150,7 +150,7 @@ export async function POST(req: Request) {
     const path = `generations/${generation_id}/${slide_id}-${Date.now()}.png`;
 
     const { error: uploadErr } = await sb.storage
-      .from("productbrain-assets")
+      .from(process.env.SUPABASE_BUCKET || "generation-images")
       .upload(path, bytes, {
         contentType: "image/png",
         upsert: true,
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
     }
 
     const { data: publicData } = sb.storage
-      .from("productbrain-assets")
+      .from(process.env.SUPABASE_BUCKET || "generation-images")
       .getPublicUrl(path);
 
     const image_url = publicData.publicUrl;
