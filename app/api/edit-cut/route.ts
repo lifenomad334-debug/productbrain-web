@@ -6,8 +6,11 @@ export const runtime = "nodejs";
 type RequestBody = {
   generation_id: string;
   slide_id: string;
-  edited_text: string;
+  // 기존 방식 (하위호환)
+  edited_text?: string;
   tweak?: "shorter" | "direct" | "premium" | null;
+  // 새 방식: 전체 JSON 업데이트
+  full_json_update?: any;
 };
 
 // 인메모리 레이트리밋 (generation당 10초 쿨다운)
@@ -18,7 +21,7 @@ export async function POST(req: Request) {
 
   try {
     const body: RequestBody = await req.json();
-    const { generation_id, slide_id, edited_text, tweak } = body;
+    const { generation_id, slide_id, edited_text, tweak, full_json_update } = body;
 
     if (!generation_id || !slide_id) {
       return NextResponse.json(
@@ -69,40 +72,38 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. generated_json에서 기존 slides 데이터 가져오기
-    const generatedJson = gen.generated_json || {};
-    const slides = generatedJson.slides || [];
+    // 3. JSON 업데이트 결정
+    let updatedJson: any;
 
-    if (slides.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: "No slides data found" },
-        { status: 404 }
-      );
+    if (full_json_update) {
+      // 새 방식: 프론트에서 수정된 전체 JSON을 직접 전달
+      updatedJson = full_json_update;
+    } else {
+      // 기존 방식: slides 기반 (하위호환)
+      const generatedJson = gen.generated_json || {};
+      const slides = generatedJson.slides || [];
+
+      if (slides.length > 0) {
+        const updatedSlides = slides.map((s: any) => {
+          if (s.slide_id === slide_id) {
+            let newText = edited_text || s.text;
+            if (tweak && !edited_text) {
+              if (tweak === "shorter") newText = `[더 짧게] ${s.text}`;
+              else if (tweak === "direct") newText = `[더 직설적으로] ${s.text}`;
+              else if (tweak === "premium") newText = `[더 고급스럽게] ${s.text}`;
+            }
+            return { ...s, text: newText };
+          }
+          return s;
+        });
+        updatedJson = { ...generatedJson, slides: updatedSlides };
+      } else {
+        updatedJson = generatedJson;
+      }
     }
 
-    // 4. 수정할 컷 찾기 및 텍스트 업데이트
-    const updatedSlides = slides.map((s: any) => {
-      if (s.slide_id === slide_id) {
-        let newText = edited_text || s.text;
-
-        // tweak 적용 (간단한 프롬프트 수정)
-        if (tweak && !edited_text) {
-          if (tweak === "shorter") {
-            newText = `[더 짧게] ${s.text}`;
-          } else if (tweak === "direct") {
-            newText = `[더 직설적으로] ${s.text}`;
-          } else if (tweak === "premium") {
-            newText = `[더 고급스럽게] ${s.text}`;
-          }
-        }
-
-        return { ...s, text: newText };
-      }
-      return s;
-    });
-
-    // 5. Railway 렌더 서버로 전체 slides 전송 (수정된 컷 포함)
-    const renderUrl = process.env.RAILWAY_RENDER_URL;
+    // 4. Railway 렌더 서버로 전송
+    const renderUrl = process.env.RENDER_SERVER_URL || process.env.RAILWAY_RENDER_URL;
     if (!renderUrl) {
       return NextResponse.json(
         { ok: false, error: "Render server URL not configured" },
@@ -110,12 +111,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const renderRes = await fetch(`${renderUrl}/generate`, {
+    // 렌더 서버는 /api/render 엔드포인트 사용
+    const renderRes = await fetch(`${renderUrl}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        generation_id,
-        slides: updatedSlides,
+        json: updatedJson,
+        platform: "coupang", // TODO: generation에서 platform 가져오기
+        image_urls: updatedJson.product_images?.map((img: any) => img.url).filter(Boolean) || [],
+        design_style: "modern_red", // TODO: generation에서 style 가져오기
       }),
     });
 
@@ -129,8 +133,8 @@ export async function POST(req: Request) {
 
     const renderData = await renderRes.json();
     
-    // renderData.images = [{ slide_id, base64 }, ...]
-    const targetImage = renderData.images?.find(
+    // renderData.slides = [{ slide_id, base64 }, ...]
+    const targetImage = renderData.slides?.find(
       (img: any) => img.slide_id === slide_id
     );
 
@@ -141,7 +145,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 6. Storage 업로드
+    // 5. Storage 업로드
     const bytes = Buffer.from(targetImage.base64, "base64");
     const path = `generations/${generation_id}/${slide_id}-${Date.now()}.png`;
 
@@ -165,7 +169,7 @@ export async function POST(req: Request) {
 
     const image_url = publicData.publicUrl;
 
-    // 7. DB 업데이트: asset image_url + edits_remaining 차감
+    // 6. DB 업데이트
     const { error: updateAssetErr } = await sb
       .from("generation_assets")
       .update({ image_url })
@@ -178,11 +182,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 8. generated_json 업데이트 (slides 정보 갱신)
+    // generated_json 업데이트
     const { error: updateGenErr } = await sb
       .from("generations")
       .update({ 
-        generated_json: { ...generatedJson, slides: updatedSlides }
+        generated_json: updatedJson
       })
       .eq("id", gen.id);
 
@@ -193,7 +197,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 9. 쿨다운 갱신
+    // 7. 쿨다운 갱신
     editCooldowns.set(cooldownKey, now);
 
     return NextResponse.json({

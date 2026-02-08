@@ -168,6 +168,7 @@ export default function GenerateForm({
   const [productTitle, setProductTitle] = useState("");
   const [platform, setPlatform] = useState<Platform>("coupang");
   const [category, setCategory] = useState<string>("electronics");
+  const [designStyle, setDesignStyle] = useState<string>("modern_red");
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -224,6 +225,7 @@ export default function GenerateForm({
       formData.append("product_title", productTitle.trim());
       formData.append("platform", platform);
       formData.append("category", category);
+      formData.append("design_style", designStyle);
       
       // 컷별 입력을 additional_info로 변환
       const cutPreset = CUT_PRESETS[selectedCutCount];
@@ -483,6 +485,59 @@ export default function GenerateForm({
               <span>{cat.emoji}</span>
               <span>{cat.label}</span>
             </label>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* 디자인 스타일 */}
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium text-neutral-900">디자인 스타일</legend>
+        <p className="mb-2 text-xs text-neutral-500">
+          상품 분위기에 맞는 디자인을 선택하세요
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {([
+            {
+              value: "modern_red",
+              label: "모던 레드",
+              desc: "깔끔하고 강렬한",
+              colors: ["#E6002D", "#0F0F0F", "#FFFFFF"],
+            },
+            {
+              value: "premium_navy",
+              label: "프리미엄 네이비",
+              desc: "고급스럽고 신뢰감",
+              colors: ["#1B2A4A", "#C9A962", "#F8F6F0"],
+            },
+            {
+              value: "natural_warm",
+              label: "내추럴 웜",
+              desc: "따뜻하고 자연스러운",
+              colors: ["#5C7A3A", "#A67C52", "#FDF8F0"],
+            },
+          ] as const).map((style) => (
+            <button
+              key={style.value}
+              type="button"
+              onClick={() => setDesignStyle(style.value)}
+              className={`rounded-xl border-2 p-3 text-left transition-all hover:shadow-md ${
+                designStyle === style.value
+                  ? "border-neutral-900 shadow-md"
+                  : "border-neutral-200"
+              }`}
+            >
+              <div className="mb-2 flex gap-1.5">
+                {style.colors.map((c, i) => (
+                  <div
+                    key={i}
+                    className="h-5 w-5 rounded-full border border-neutral-200"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+              <div className="text-sm font-semibold text-neutral-900">{style.label}</div>
+              <div className="text-xs text-neutral-500">{style.desc}</div>
+            </button>
           ))}
         </div>
       </fieldset>

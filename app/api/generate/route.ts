@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   let platform: string;
   let additionalInfo: string;
   let category: string;
+  let designStyle: string;
   let imageFiles: File[] = [];
   let userId: string | null = null;
 
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
     platform = (formData.get("platform") as string) || "";
     additionalInfo = (formData.get("additional_info") as string) || "";
     category = (formData.get("category") as string) || "electronics";
+    designStyle = (formData.get("design_style") as string) || "modern_red";
     imageFiles = formData.getAll("images") as File[];
     userId = (formData.get("user_id") as string) || null;
   } else {
@@ -38,6 +40,7 @@ export async function POST(req: Request) {
     platform = body.platform || "";
     additionalInfo = body.additional_info || "";
     category = body.category || "electronics";
+    designStyle = body.design_style || "modern_red";
     userId = body.user_id || null;
   }
 
@@ -258,6 +261,8 @@ export async function POST(req: Request) {
         json: edgeJson.json,
         platform,
         image_urls: uploadedImageUrls,
+        design_style: designStyle,
+        category: category,
       }),
     });
 
