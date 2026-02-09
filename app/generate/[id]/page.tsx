@@ -267,6 +267,11 @@ export default function ResultPage() {
     { id: "modern_red", label: "모던 레드", color: "#E6002D", accent2: "#FFD6D6" },
     { id: "premium_navy", label: "프리미엄 네이비", color: "#1B2A4A", accent2: "#D4A843" },
     { id: "natural_warm", label: "내추럴 웜", color: "#3D7A2A", accent2: "#B87830" },
+    { id: "ocean_blue", label: "오션 블루", color: "#2563EB", accent2: "#BFDBFE" },
+    { id: "soft_coral", label: "소프트 코랄", color: "#D4615A", accent2: "#F5CCC8" },
+    { id: "mocha_brown", label: "모카 브라운", color: "#6B4226", accent2: "#A67C52" },
+    { id: "slate_dark", label: "슬레이트 다크", color: "#475569", accent2: "#CBD5E1" },
+    { id: "rose_gold", label: "로즈골드", color: "#9B6B5A", accent2: "#C4956A" },
   ];
   const [currentTheme, setCurrentTheme] = useState<string>("modern_red");
   const [isChangingTheme, setIsChangingTheme] = useState(false);
@@ -545,36 +550,33 @@ export default function ResultPage() {
 
           {/* 테마 선택 */}
           <div className="mt-4 border-t border-neutral-100 pt-4">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-neutral-600">🎨 테마</span>
-              <div className="flex items-center gap-2">
+            <div className="flex items-start gap-3">
+              <span className="mt-1.5 text-sm font-medium text-neutral-600 whitespace-nowrap">🎨 테마</span>
+              <div className="flex flex-wrap items-center gap-2">
                 {THEMES.map((theme) => (
                   <button
                     key={theme.id}
                     type="button"
                     onClick={() => handleThemeChange(theme.id)}
                     disabled={isChangingTheme}
-                    className={`group relative flex items-center gap-2 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all ${
+                    className={`group relative flex items-center gap-1.5 rounded-full border-2 px-2.5 py-1 text-xs font-medium transition-all ${
                       currentTheme === theme.id
                         ? "border-neutral-900 bg-neutral-900 text-white shadow-md"
                         : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
                     } ${isChangingTheme ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <span
-                      className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-black/10"
+                      className="inline-block h-3 w-3 rounded-full ring-1 ring-black/10"
                       style={{ background: `linear-gradient(135deg, ${theme.color}, ${theme.accent2})` }}
                     />
                     <span>{theme.label}</span>
-                    {currentTheme === theme.id && (
-                      <span className="text-xs">✓</span>
-                    )}
                   </button>
                 ))}
               </div>
               {isChangingTheme && (
-                <div className="flex items-center gap-2 text-sm text-blue-600">
+                <div className="flex items-center gap-2 text-sm text-blue-600 whitespace-nowrap">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
-                  테마 적용 중...
+                  적용 중...
                 </div>
               )}
             </div>
