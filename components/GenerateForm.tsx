@@ -237,6 +237,7 @@ export default function GenerateForm({
         .join("\n");
       
       formData.append("additional_info", additionalInfo);
+      formData.append("cut_count", String(selectedCutCount));
       
       if (userId) {
         formData.append("user_id", userId);
@@ -289,28 +290,21 @@ export default function GenerateForm({
           {[
             { count: 4 as const, label: "4컷", desc: "간단한 전환용" },
             { count: 6 as const, label: "6컷", desc: "가장 많이 쓰는 설득 구조", recommended: true },
-            { count: 8 as const, label: "8컷", desc: "준비 중", disabled: true },
+            { count: 8 as const, label: "8컷", desc: "정보가 많은 상품용" },
           ].map(({ count, label, desc, recommended, disabled }) => (
             <button
               key={count}
               type="button"
-              onClick={() => !disabled && handleCutCountSelect(count)}
-              className={`relative rounded-lg border-2 p-4 text-left transition-all ${
-                disabled
-                  ? "cursor-not-allowed border-neutral-100 bg-neutral-50 opacity-50"
-                  : selectedCutCount === count
-                    ? "border-neutral-900 bg-neutral-50 hover:shadow-md"
-                    : "border-neutral-200 hover:border-neutral-900 hover:shadow-md"
+              onClick={() => handleCutCountSelect(count)}
+              className={`relative rounded-lg border-2 p-4 text-left transition-all hover:border-neutral-900 hover:shadow-md ${
+                selectedCutCount === count
+                  ? "border-neutral-900 bg-neutral-50"
+                  : "border-neutral-200"
               }`}
             >
               {recommended && (
                 <span className="absolute -top-2 right-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
                   추천
-                </span>
-              )}
-              {disabled && (
-                <span className="absolute -top-2 right-2 rounded-full bg-neutral-400 px-2 py-0.5 text-xs font-medium text-white">
-                  준비 중
                 </span>
               )}
               <div className="text-lg font-semibold text-neutral-900">{label}</div>

@@ -22,6 +22,7 @@ export async function POST(req: Request) {
   let designStyle: string;
   let imageFiles: File[] = [];
   let userId: string | null = null;
+  let cutCount: number = 6;
 
   const contentType = req.headers.get("content-type") || "";
 
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     designStyle = (formData.get("design_style") as string) || "modern_red";
     imageFiles = formData.getAll("images") as File[];
     userId = (formData.get("user_id") as string) || null;
+    cutCount = parseInt((formData.get("cut_count") as string) || "6", 10) || 6;
   } else {
     const body = await req.json();
     productTitle = body.product_title || "";
@@ -42,6 +44,7 @@ export async function POST(req: Request) {
     category = body.category || "electronics";
     designStyle = body.design_style || "modern_red";
     userId = body.user_id || null;
+    cutCount = parseInt(body.cut_count || "6", 10) || 6;
   }
 
   if (!productTitle || !platform) {
@@ -160,8 +163,13 @@ export async function POST(req: Request) {
     }
 
     // 3) Edge Function: JSON 생성
+    // 컷 수 → detail blocks 매핑
+    // 4컷: 1 detail (간단), 6컷: 3 details (표준), 8컷: 5 details (상세)
+    const detailBlockMap: Record<number, number> = { 4: 1, 6: 3, 8: 5 };
+    const detailBlockCount = detailBlockMap[cutCount] || 3;
+    
     console.log("EDGE CALL START:", EDGE_URL);
-    console.log("EDGE CALL BODY:", JSON.stringify({ product_title: productTitle, platform, additional_info: additionalInfo }));
+    console.log("EDGE CALL BODY:", JSON.stringify({ product_title: productTitle, platform, additional_info: additionalInfo, cut_count: cutCount, detail_block_count: detailBlockCount }));
     const edgeRes = await fetch(EDGE_URL, {
       method: "POST",
       headers: {
@@ -172,6 +180,8 @@ export async function POST(req: Request) {
         product_title: productTitle,
         platform: platform,
         additional_info: additionalInfo,
+        cut_count: cutCount,
+        detail_block_count: detailBlockCount,
       }),
     });
 

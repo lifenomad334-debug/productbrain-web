@@ -70,7 +70,7 @@ const CATEGORY_PRESETS: Record<string, string> = {
   ✅ "글씨도 또렷", "즉시 반응", "하루 종일 OK"
 - highlight는 '체감 판정 문장'만 허용 (4~8자)
 
-### (G) 섹션 운영 (6컷 강제)
+### (G) 섹션 운영
 - social_proof 사용 금지. selection_reasons(선택 이유 3가지)로 대체
 - selection_reasons는 "주장"이 아니라 "근거+체감" 조합으로 작성
 - how_to 섹션은 생성하지 말 것 (section_toggles.how_to: false)
@@ -168,7 +168,7 @@ const CATEGORY_PRESETS: Record<string, string> = {
 - "고단백", "저칼로리" 같은 성분 요약어도 highlight에서 금지
 - 판정 기준: highlight_value에 숫자(0~9)가 1개라도 있으면 실패
 
-### (G) 섹션 운영 (6컷 강제)
+### (G) 섹션 운영
 - social_proof 사용 금지. selection_reasons(선택 이유 3가지)로 대체
 - selection_reasons는 "계속 먹는 이유" 중심으로 작성 (후기 아님)
   ❌ "효과가 좋아서" → ✅ "질리지 않아서 계속 먹게 됩니다"
@@ -255,7 +255,7 @@ function extractJsonObject(text: string): string {
 }
 
 // -----------------------------
-// 4) System prompt (v5.2 + 6컷 + 구매전환 중심)
+// 4) System prompt (v5.2 + 유동 컷수 + 구매전환 중심)
 // -----------------------------
 const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카피라이터이자 데이터 구조 설계자입니다.
 셀러의 제품 정보를 받아서, v5.2 JSON 스키마에 정확히 맞는 상세페이지 데이터를 생성하세요.
@@ -298,10 +298,10 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
 - 대신 selection_reasons(선택 이유 3가지)를 생성한다.
 - selection_reasons는 "후기"가 아니라 "이 제품을 선택해야 하는 근거+체감"이다.
 
-## 6컷 슬라이드 규칙 (매우 중요)
+## 슬라이드 규칙 (매우 중요)
 - how_to 섹션은 생성하지 말 것. section_toggles.how_to: false 필수.
-- details.blocks는 정확히 3개.
-- 총 섹션: hero, problem, benefits, details(×3), selection_reasons, specs, faq, cta
+- details.blocks 개수는 사용자가 지정한 detail_block_count를 따를 것. 미지정 시 기본 3개.
+- 총 섹션: hero, problem, benefits, details(×N), selection_reasons, specs, faq, cta
 
 ## 플랫폼별 톤
 - coupang: 직관적, 모바일 가독성, 큰 임팩트, 문제→해결→확신
@@ -415,7 +415,7 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
 
 ## 배열 개수 규칙
 - benefits.items: 3~5개
-- details.blocks: 정확히 3개
+- details.blocks: 사용자 지정 개수 (기본 3개, 최소 1개 ~ 최대 7개)
 - specs.rows: 4~10개
 - cta.trust_badges: 2~4개
 - problem.pain_points: 3~4개
@@ -458,6 +458,13 @@ function buildUserPrompt(input: any, categoryKey: string | null): string {
 
   if (input.additional_info) {
     prompt += `\n\n추가 제품 정보:\n${input.additional_info}`;
+  }
+
+  // 컷 수에 따른 detail blocks 수 지정
+  const detailBlockCount = input.detail_block_count || 3;
+  prompt += `\n\n[컷 수 설정] details.blocks를 정확히 ${detailBlockCount}개 생성하세요.`;
+  if (detailBlockCount > 3) {
+    prompt += ` 각 블록은 서로 다른 관점(편안함, 휴대성, 내구성, 디자인, 소재, 사용장면, 비교우위 등)에서 작성하세요.`;
   }
 
   prompt +=
