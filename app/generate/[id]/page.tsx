@@ -539,8 +539,8 @@ export default function ResultPage() {
 
                 {/* 이미지 + 편집 패널 (항상 가로 레이아웃) */}
                 <div className="flex flex-col lg:flex-row">
-                  {/* 이미지 영역 — 고정 너비 */}
-                  <div className="relative lg:w-[480px] lg:min-w-[480px] lg:sticky lg:top-4 lg:self-start">
+                  {/* 이미지 영역 — sticky로 편집 스크롤 시 따라옴 */}
+                  <div className="relative lg:w-[480px] lg:min-w-[480px] lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)]">
                     <img
                       src={asset.image_url}
                       alt={`${displayInfo.label} - ${idx + 1}번째 컷`}
@@ -581,7 +581,7 @@ export default function ResultPage() {
                   {/* 인라인 편집 패널 (오른쪽 — 항상 노출) */}
                   {/* ============================================================ */}
                   {editedJson && (
-                    <div className="flex-1 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-gradient-to-b from-slate-50/80 to-white px-5 py-4 lg:max-h-[85vh] lg:overflow-y-auto">
+                    <div className="flex-1 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-gradient-to-b from-slate-50/80 to-white px-5 py-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
                       
                       {/* 🎯 이 컷의 목표 — 눈에 띄게 */}
                       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">

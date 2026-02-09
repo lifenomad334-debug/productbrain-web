@@ -283,6 +283,7 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
 [RULE 06] FAQ는 망설임 제거 — 절반 이상 부정/의심 질문 + 구매 핑계 제공
 [RULE 07] Problem은 잔인한 경험형 — "~하게 됩니다" + 구체적 상황+감정
 [RULE 08] CTA에 이탈 방지 질문 — "~하실 건가요?" 형태
+[RULE 09] 모든 텍스트는 짧게! — 설명은 한 줄(25자 이내), 본문도 2~3문장 이내. 길면 무조건 나쁨. 상세페이지는 이미지+짧은 텍스트가 핵심.
 
 ## Details 블록 제목 규칙 (매우 중요)
 - headline에 기능명/기술명/브랜드명 절대 금지!
@@ -342,7 +343,7 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
   "problem": {
     "headline": "max 30자",
     "pain_points": [
-      { "icon": "이모지", "text": "max 50자 — 잔인한 경험형" }
+      { "icon": "이모지", "text": "max 30자 — 핵심 불편만" }
     ],
     "bridge": "max 60자 — 명령형 금지, 귀결형만"
   },
@@ -351,9 +352,9 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
     "items": [
       {
         "icon": "이모지",
-        "title": "max 15자",
-        "description": "max 40자 — 장면+손실암시",
-        "highlight_value": "max 15자 — 스펙숫자 금지, 체감 판정만"
+        "title": "max 12자",
+        "description": "max 25자 — 핵심만 한 줄로",
+        "highlight_value": "max 12자 — 체감 판정만"
       }
     ]
   },
@@ -362,7 +363,7 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
       {
         "slide_label": "max 20자",
         "headline": "max 30자 — 기능명 금지! 체감 결과만",
-        "body": "max 150자 — 마지막=체감결과",
+        "body": "max 80자 — 짧고 임팩트 있게",
         "image_index": 0,
         "bg_tone": "warm|cool|fresh|neutral"
       }
@@ -371,7 +372,7 @@ const SYSTEM_PROMPT = `당신은 한국 이커머스 상세페이지 전문 카�
   "selection_reasons": {
     "headline": "max 20자",
     "items": [
-      { "icon": "이모지", "title": "max 20자", "text": "max 90자 — 근거+체감" }
+      { "icon": "이모지", "title": "max 15자", "text": "max 50자 — 근거 한 줄" }
     ]
   },
   "specs": {
@@ -566,6 +567,27 @@ function validateProductJSON(json: any, categoryKey?: string | null): { valid: b
     ['cta.headline', json.cta?.headline, 30],
     ['cta.sub_text', json.cta?.sub_text, 60],
   ];
+  // benefit description, problem text 길이 검사
+  if (json.benefits?.items) {
+    json.benefits.items.forEach((item: any, i: number) => {
+      if (item.description && item.description.length > 30) {
+        // 자동 트림
+        item.description = item.description.substring(0, 28) + '..';
+        warnings.push(`benefits.items[${i}].description 30자 초과 → 자동 트림`);
+      }
+      if (item.title && item.title.length > 15) {
+        item.title = item.title.substring(0, 14) + '…';
+      }
+    });
+  }
+  if (json.problem?.items) {
+    json.problem.items.forEach((item: any, i: number) => {
+      if (item.text && item.text.length > 35) {
+        item.text = item.text.substring(0, 33) + '..';
+        warnings.push(`problem.items[${i}].text 35자 초과 → 자동 트림`);
+      }
+    });
+  }
   lc.forEach(([f, v, m]) => {
     if (v && typeof v === 'string' && v.length > (m as number))
       errors.push(`글자수 초과: ${f} (${(v as string).length}>${m})`);
