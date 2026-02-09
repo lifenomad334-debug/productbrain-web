@@ -10,6 +10,11 @@ export default function Page() {
   const [checking, setChecking] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // 테스트 계정
+  const TEST_EMAILS = ["husunmin@naver.com"];
+  const isTestAccount = TEST_EMAILS.includes(userEmail || "");
 
   useEffect(() => {
     async function checkAuth() {
@@ -21,6 +26,7 @@ export default function Page() {
 
       const uid = data.session.user.id;
       setUserId(uid);
+      setUserEmail(data.session.user.email || null);
 
       // 크레딧 조회
       const { data: profile } = await supabaseBrowser
@@ -43,8 +49,8 @@ export default function Page() {
     );
   }
 
-  // 크레딧 소진 안내
-  if (credits !== null && credits <= 0) {
+  // 크레딧 소진 안내 (테스트 계정은 바이패스)
+  if (!isTestAccount && credits !== null && credits <= 0) {
     return (
       <div className="max-w-lg mx-auto py-20 text-center">
         <div className="text-5xl mb-6">⚡</div>
@@ -72,7 +78,8 @@ export default function Page() {
           <h1 className="text-2xl font-bold tracking-tight">상세페이지 생성</h1>
           {credits !== null && (
             <span className="text-sm text-neutral-400">
-              남은 크레딧: <span className="font-semibold text-neutral-700">{credits}</span>
+              남은 크레딧: <span className="font-semibold text-neutral-700">{isTestAccount ? "∞" : credits}</span>
+              {isTestAccount && <span className="ml-1 text-xs text-yellow-600">테스트</span>}
             </span>
           )}
         </div>

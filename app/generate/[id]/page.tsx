@@ -246,6 +246,11 @@ export default function ResultPage() {
   const [assets, setAssets] = useState<GenerationAsset[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // 테스트 계정 체크
+  const TEST_EMAILS = ["husunmin@naver.com"];
+  const isTestAccount = TEST_EMAILS.includes(userEmail || "");
 
   // 편집 상태 — 패널은 항상 노출, editingSlideId는 아코디언 접기용
   const [editedJson, setEditedJson] = useState<any>(null);
@@ -261,6 +266,10 @@ export default function ResultPage() {
   useEffect(() => {
     async function fetchGeneration() {
       try {
+        // 유저 이메일 가져오기
+        const { data: { user } } = await supabaseBrowser.auth.getUser();
+        if (user?.email) setUserEmail(user.email);
+
         const { data, error: fetchError } = await supabaseBrowser
           .from("generations")
           .select("*")
@@ -527,7 +536,8 @@ export default function ResultPage() {
                       draggable={false}
                       onContextMenu={(e) => e.preventDefault()}
                     />
-                    {/* 워터마크 */}
+                    {/* 워터마크 — 테스트 계정은 제외 */}
+                    {!isTestAccount && (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                       <div className="grid grid-cols-3 gap-8 opacity-5">
                         {Array.from({ length: 9 }).map((_, i) => (
@@ -540,6 +550,7 @@ export default function ResultPage() {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* 로딩 오버레이 */}
                     {saving && (
@@ -692,39 +703,23 @@ export default function ResultPage() {
 
         {/* 피드백 + 다운로드 섹션 */}
         <div className="mt-10 space-y-6">
-          {!feedbackSubmitted ? (
+          {isTestAccount || feedbackSubmitted ? (
             <>
-              <FeedbackBox
-                generationId={generationId}
-                userId={generation.user_id}
-                cutCount={assets.length as 4 | 6 | 8}
-                onSubmitSuccess={() => {
-                  setFeedbackSubmitted(true);
-                  alert("피드백 감사합니다! 다운로드가 가능합니다.");
-                }}
-              />
-              <div className="text-center">
-                <button
-                  disabled
-                  className="w-full cursor-not-allowed rounded-lg bg-neutral-300 py-3 text-sm font-medium text-neutral-500"
-                >
-                  🔒 다운로드 (피드백 제출 후 가능)
-                </button>
-                <p className="mt-2 text-xs text-neutral-500">
-                  다운로드 전에 15초 피드백을 부탁드려요 (초기 100명 품질 개선용)
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
-                <p className="text-sm font-semibold text-green-900">
-                  ✓ 피드백 감사합니다!
-                </p>
-                <p className="mt-1 text-xs text-green-700">
-                  서비스 개선에 큰 도움이 됩니다
-                </p>
-              </div>
+              {isTestAccount && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-center">
+                  <p className="text-xs font-medium text-yellow-800">🧪 테스트 계정 — 피드백/크레딧 없이 이용 가능</p>
+                </div>
+              )}
+              {feedbackSubmitted && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
+                  <p className="text-sm font-semibold text-green-900">
+                    ✓ 피드백 감사합니다!
+                  </p>
+                  <p className="mt-1 text-xs text-green-700">
+                    서비스 개선에 큰 도움이 됩니다
+                  </p>
+                </div>
+              )}
               <div className="flex gap-4">
                 {generation.zip_url ? (
                   <a
@@ -750,6 +745,29 @@ export default function ResultPage() {
                 >
                   새로 생성하기
                 </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <FeedbackBox
+                generationId={generationId}
+                userId={generation.user_id}
+                cutCount={assets.length as 4 | 6 | 8}
+                onSubmitSuccess={() => {
+                  setFeedbackSubmitted(true);
+                  alert("피드백 감사합니다! 다운로드가 가능합니다.");
+                }}
+              />
+              <div className="text-center">
+                <button
+                  disabled
+                  className="w-full cursor-not-allowed rounded-lg bg-neutral-300 py-3 text-sm font-medium text-neutral-500"
+                >
+                  🔒 다운로드 (피드백 제출 후 가능)
+                </button>
+                <p className="mt-2 text-xs text-neutral-500">
+                  다운로드 전에 15초 피드백을 부탁드려요 (초기 100명 품질 개선용)
+                </p>
               </div>
             </>
           )}
