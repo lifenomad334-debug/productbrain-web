@@ -262,6 +262,15 @@ export default function ResultPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [replacingSlideId, setReplacingSlideId] = useState<string | null>(null);
 
+  // 테마 선택
+  const THEMES = [
+    { id: "modern_red", label: "모던 레드", color: "#E6002D", accent2: "#FFD6D6" },
+    { id: "premium_navy", label: "프리미엄 네이비", color: "#1B2A4A", accent2: "#D4A843" },
+    { id: "natural_warm", label: "내추럴 웜", color: "#3D7A2A", accent2: "#B87830" },
+  ];
+  const [currentTheme, setCurrentTheme] = useState<string>("modern_red");
+  const [isChangingTheme, setIsChangingTheme] = useState(false);
+
   // 데이터 로드
   useEffect(() => {
     async function fetchGeneration() {
@@ -282,6 +291,10 @@ export default function ResultPage() {
         setGeneration(data);
         setEditedJson(data.generated_json);
         setFeedbackSubmitted(data.feedback_submitted || false);
+        // 테마 초기화
+        if (data.generated_json?.design_style) {
+          setCurrentTheme(data.generated_json.design_style);
+        }
 
         const { data: assetsData, error: assetsError } = await supabaseBrowser
           .from("generation_assets")
@@ -325,6 +338,7 @@ export default function ResultPage() {
           slide_id: slideId,
           full_json_update: editedJson,
           tweak: activeTone[slideId] || null,
+          design_style: currentTheme,
         }),
       });
 
@@ -353,6 +367,59 @@ export default function ResultPage() {
       alert(err.message || "수정 중 오류가 발생했습니다");
     } finally {
       setIsSaving((s) => ({ ...s, [slideId]: false }));
+    }
+  }
+
+  // 테마 변경 — 전체 슬라이드 일괄 재렌더링
+  async function handleThemeChange(themeId: string) {
+    if (!generation || !editedJson || themeId === currentTheme) return;
+    
+    setIsChangingTheme(true);
+    const prevTheme = currentTheme;
+    setCurrentTheme(themeId);
+    
+    // editedJson에 design_style 반영
+    const updatedJson = { ...editedJson, design_style: themeId };
+    setEditedJson(updatedJson);
+
+    try {
+      // 모든 슬라이드를 순차적으로 재렌더링
+      for (const asset of assets) {
+        setIsSaving((s) => ({ ...s, [asset.slide_id]: true }));
+        
+        const res = await fetch("/api/edit-cut", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            generation_id: generationId,
+            slide_id: asset.slide_id,
+            full_json_update: updatedJson,
+            design_style: themeId,
+          }),
+        });
+
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || "테마 변경 실패");
+
+        setAssets((prev) =>
+          prev.map((a) =>
+            a.slide_id === asset.slide_id ? { ...a, image_url: json.image_url } : a
+          )
+        );
+        setIsSaving((s) => ({ ...s, [asset.slide_id]: false }));
+      }
+
+      setGeneration((prev) =>
+        prev ? { ...prev, generated_json: updatedJson } : prev
+      );
+    } catch (err: any) {
+      alert(err.message || "테마 변경 중 오류가 발생했습니다");
+      setCurrentTheme(prevTheme);
+      setEditedJson((prev: any) => ({ ...prev, design_style: prevTheme }));
+    } finally {
+      setIsChangingTheme(false);
+      // 모든 saving 해제
+      setIsSaving({});
     }
   }
 
@@ -475,6 +542,43 @@ export default function ResultPage() {
               </div>
             </div>
           </div>
+
+          {/* 테마 선택 */}
+          <div className="mt-4 border-t border-neutral-100 pt-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-neutral-600">🎨 테마</span>
+              <div className="flex items-center gap-2">
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => handleThemeChange(theme.id)}
+                    disabled={isChangingTheme}
+                    className={`group relative flex items-center gap-2 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all ${
+                      currentTheme === theme.id
+                        ? "border-neutral-900 bg-neutral-900 text-white shadow-md"
+                        : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
+                    } ${isChangingTheme ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <span
+                      className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-black/10"
+                      style={{ background: `linear-gradient(135deg, ${theme.color}, ${theme.accent2})` }}
+                    />
+                    <span>{theme.label}</span>
+                    {currentTheme === theme.id && (
+                      <span className="text-xs">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {isChangingTheme && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
+                  테마 적용 중...
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ============================================================ */}
@@ -539,8 +643,8 @@ export default function ResultPage() {
 
                 {/* 이미지 + 편집 패널 (항상 가로 레이아웃) */}
                 <div className="flex flex-col lg:flex-row">
-                  {/* 이미지 영역 — sticky로 편집 스크롤 시 따라옴 */}
-                  <div className="relative lg:w-[480px] lg:min-w-[480px] lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+                  {/* 이미지 영역 — 고정 너비, NO sticky */}
+                  <div className="relative lg:w-[480px] lg:min-w-[480px] lg:self-start">
                     <img
                       src={asset.image_url}
                       alt={`${displayInfo.label} - ${idx + 1}번째 컷`}
@@ -581,7 +685,7 @@ export default function ResultPage() {
                   {/* 인라인 편집 패널 (오른쪽 — 항상 노출) */}
                   {/* ============================================================ */}
                   {editedJson && (
-                    <div className="flex-1 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-gradient-to-b from-slate-50/80 to-white px-5 py-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+                    <div className="flex-1 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-gradient-to-b from-slate-50/80 to-white px-5 py-4">
                       
                       {/* 🎯 이 컷의 목표 — 눈에 띄게 */}
                       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
