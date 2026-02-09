@@ -16,7 +16,7 @@ type CutRole = {
   placeholder: string;
 };
 
-const CUT_PRESETS: Record<4 | 6 | 8, CutRole[]> = {
+const CUT_PRESETS: Record<4 | 6 | 8 | 10 | 12, CutRole[]> = {
   4: [
     {
       id: "hook",
@@ -149,6 +149,164 @@ const CUT_PRESETS: Record<4 | 6 | 8, CutRole[]> = {
       placeholder: "예: 최저가 46% 할인, 오늘 자정까지 1+1",
     },
   ],
+  10: [
+    {
+      id: "hook",
+      label: "첫 문장",
+      purpose: "고객이 쓰는 상황을 보여주는 문장",
+      guide: "고객이 언제, 어디서 이 상품을 쓰나요? (상황 1-2줄로)",
+      placeholder: "예: 매일 아침 출근 전 5분 만에 완성하는 스킨케어",
+    },
+    {
+      id: "problem",
+      label: "문제 공감",
+      purpose: "기존 제품의 불편을 짚는 문장",
+      guide: "기존 제품이 뭐가 불편한가요? (구체적으로 1-2가지)",
+      placeholder: "예: 기존 선크림은 백탁이 심하고 끈적여서 매일 바르기 싫었다면",
+    },
+    {
+      id: "benefit_1",
+      label: "핵심 효과 1",
+      purpose: "가장 강력한 장점 1가지를 쓰는 문장",
+      guide: "이 상품의 가장 강력한 장점 1가지만 자세히",
+      placeholder: "예: 투명하게 발리는 무기자차 선크림, 백탁 제로",
+    },
+    {
+      id: "benefit_2",
+      label: "핵심 효과 2",
+      purpose: "추가 장점 1가지를 쓰는 문장",
+      guide: "추가로 강조할 장점 1가지 더 자세히",
+      placeholder: "예: SPF50+ PA++++ 자외선 차단, 12시간 지속력",
+    },
+    {
+      id: "benefit_3",
+      label: "핵심 효과 3",
+      purpose: "세 번째 장점을 쓰는 문장",
+      guide: "또 다른 차별화 포인트 1가지",
+      placeholder: "예: 수분감 가득한 촉촉한 마무리, 건조함 없이 하루 종일",
+    },
+    {
+      id: "proof",
+      label: "근거/신뢰",
+      purpose: "믿을 수 있는 이유를 쓰는 문장",
+      guide: "믿을 수 있는 근거가 뭔가요? (소재, 인증, 수치 중 1-2가지)",
+      placeholder: "예: 피부과 테스트 완료, 민감성 피부 사용 적합 판정",
+    },
+    {
+      id: "detail",
+      label: "상세 스펙",
+      purpose: "스펙/옵션을 쓰는 문장",
+      guide: "고객이 궁금해할 스펙은? (용량, 성분, 크기 등)",
+      placeholder: "예: 50ml, 무향, 비건 인증, 7가지 유해성분 무첨가",
+    },
+    {
+      id: "comparison",
+      label: "비교 우위",
+      purpose: "경쟁 제품 대비 장점을 쓰는 문장",
+      guide: "비슷한 제품과 비교했을 때 뭐가 더 좋은가요?",
+      placeholder: "예: A사 제품보다 2배 촉촉, 가격은 30% 저렴",
+    },
+    {
+      id: "concern",
+      label: "불안 해소",
+      purpose: "걱정거리를 해결해주는 문장",
+      guide: "고객이 걱정할 만한 점과 해결책을 자세히",
+      placeholder: "예: 트러블 걱정? 비커머제닉 테스트 완료, 30일 환불 보장",
+    },
+    {
+      id: "cta",
+      label: "구매 유도",
+      purpose: "할인/이벤트 정보를 쓰는 문장",
+      guide: "지금 사면 뭐가 이득인가요? (할인가, 사은품, 긴급성)",
+      placeholder: "예: 첫 구매 40% 할인 + 미니어처 키트 증정",
+    },
+  ],
+  12: [
+    {
+      id: "hook",
+      label: "첫 문장",
+      purpose: "고객이 쓰는 상황을 보여주는 문장",
+      guide: "고객이 언제, 어디서 이 상품을 쓰나요? (상황 1-2줄로)",
+      placeholder: "예: 새벽 운동 후 단백질 보충이 필요한 순간",
+    },
+    {
+      id: "problem_1",
+      label: "문제 공감 1",
+      purpose: "기존 제품의 불편 첫 번째",
+      guide: "가장 큰 불편 1가지를 구체적으로",
+      placeholder: "예: 기존 프로틴은 물에 잘 안 풀려서 덩어리가 남았다면",
+    },
+    {
+      id: "problem_2",
+      label: "문제 공감 2",
+      purpose: "기존 제품의 불편 두 번째",
+      guide: "추가 불편 1가지를 구체적으로",
+      placeholder: "예: 맛이 없어서 억지로 마셔야 했다면",
+    },
+    {
+      id: "benefit_1",
+      label: "핵심 효과 1",
+      purpose: "가장 강력한 장점",
+      guide: "이 상품의 가장 강력한 장점 1가지만 자세히",
+      placeholder: "예: 3초 쉐이킹으로 완벽 용해, 덩어리 제로",
+    },
+    {
+      id: "benefit_2",
+      label: "핵심 효과 2",
+      purpose: "두 번째 장점",
+      guide: "추가 장점 1가지",
+      placeholder: "예: 초코/바닐라/딸기 3가지 맛, 실제 후기 평점 4.9",
+    },
+    {
+      id: "benefit_3",
+      label: "핵심 효과 3",
+      purpose: "세 번째 장점",
+      guide: "또 다른 차별화 포인트",
+      placeholder: "예: 1회분 단백질 30g, 칼로리는 120kcal로 부담 없는",
+    },
+    {
+      id: "benefit_4",
+      label: "핵심 효과 4",
+      purpose: "네 번째 장점",
+      guide: "추가 강조 포인트 1가지",
+      placeholder: "예: WPC+WPI 혼합으로 흡수율 극대화",
+    },
+    {
+      id: "proof",
+      label: "근거/신뢰",
+      purpose: "믿을 수 있는 이유",
+      guide: "인증, 수상, 판매량 등 신뢰 근거",
+      placeholder: "예: HACCP 인증, 누적 판매 100만 봉지 돌파",
+    },
+    {
+      id: "detail",
+      label: "상세 스펙",
+      purpose: "스펙/옵션 정보",
+      guide: "용량, 성분, 맛 종류 등",
+      placeholder: "예: 2kg(66회분), 유청단백질 농축분말, 스테비아 감미",
+    },
+    {
+      id: "comparison",
+      label: "비교 우위",
+      purpose: "경쟁 제품 대비 장점",
+      guide: "비슷한 제품과 비교했을 때 뭐가 더 좋은가요?",
+      placeholder: "예: 타사 대비 단백질 함량 20% 높고, 1회당 가격 40% 저렴",
+    },
+    {
+      id: "concern",
+      label: "불안 해소",
+      purpose: "걱정거리를 해결해주는 문장",
+      guide: "고객이 걱정할 만한 점과 해결책",
+      placeholder: "예: 유당불내증 걱정 없는 WPI 포뮬러, 30일 환불 보장",
+    },
+    {
+      id: "cta",
+      label: "구매 유도",
+      purpose: "할인/이벤트 정보",
+      guide: "지금 사면 뭐가 이득인가요?",
+      placeholder: "예: 오늘만 1+1 + 쉐이커 증정, 무료배송",
+    },
+  ],
 };
 
 const MAX_IMAGES = 999; // 실질적 제한 없음 (서버에서 용량 제한)
@@ -176,7 +334,7 @@ export default function GenerateForm({
 
   // 2단계 플로우 상태
   const [currentStep, setCurrentStep] = useState(1); // 1: 컷수 선택, 2: 컷별 입력
-  const [selectedCutCount, setSelectedCutCount] = useState<4 | 6 | 8>(6);
+  const [selectedCutCount, setSelectedCutCount] = useState<4 | 6 | 8 | 10 | 12>(6);
   const [cutInputs, setCutInputs] = useState<Record<string, string>>({});
 
   // 이미지 핸들러 (제한 없음)
@@ -200,7 +358,7 @@ export default function GenerateForm({
   }
 
   // Step 진행
-  function handleCutCountSelect(count: 4 | 6 | 8) {
+  function handleCutCountSelect(count: 4 | 6 | 8 | 10 | 12) {
     setSelectedCutCount(count);
     setCurrentStep(2); // 바로 입력 단계로
   }
@@ -286,11 +444,13 @@ export default function GenerateForm({
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3">
           {[
             { count: 4 as const, label: "4컷", desc: "간단한 전환용" },
             { count: 6 as const, label: "6컷", desc: "가장 많이 쓰는 설득 구조", recommended: true },
             { count: 8 as const, label: "8컷", desc: "정보가 많은 상품용" },
+            { count: 10 as const, label: "10컷", desc: "깊은 설득 + 비교까지" },
+            { count: 12 as const, label: "12컷", desc: "프리미엄 풀 구성" },
           ].map(({ count, label, desc, recommended }) => (
             <button
               key={count}
@@ -496,25 +656,55 @@ export default function GenerateForm({
         <p className="mb-2 text-xs text-neutral-500">
           상품 분위기에 맞는 디자인을 선택하세요
         </p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2.5">
           {([
             {
               value: "modern_red",
               label: "모던 레드",
-              desc: "깔끔하고 강렬한",
-              colors: ["#E6002D", "#0F0F0F", "#FFFFFF"],
+              desc: "강렬한 전환율",
+              colors: ["#E6002D", "#1A1A1A", "#FFFFFF"],
             },
             {
               value: "premium_navy",
               label: "프리미엄 네이비",
-              desc: "고급스럽고 신뢰감",
-              colors: ["#1B2A4A", "#C9A962", "#F8F6F0"],
+              desc: "고급 · 신뢰감",
+              colors: ["#1B2A4A", "#D4A843", "#F8F6F0"],
             },
             {
               value: "natural_warm",
               label: "내추럴 웜",
-              desc: "따뜻하고 자연스러운",
-              colors: ["#5C7A3A", "#A67C52", "#FDF8F0"],
+              desc: "자연 · 건강",
+              colors: ["#3D7A2A", "#B87830", "#FDF8F0"],
+            },
+            {
+              value: "ocean_blue",
+              label: "오션 블루",
+              desc: "테크 · 전자",
+              colors: ["#2563EB", "#BFDBFE", "#F0F5FF"],
+            },
+            {
+              value: "soft_coral",
+              label: "소프트 코랄",
+              desc: "뷰티 · 코스메틱",
+              colors: ["#D4615A", "#F5CCC8", "#FFF0EE"],
+            },
+            {
+              value: "mocha_brown",
+              label: "모카 브라운",
+              desc: "카페 · 식품",
+              colors: ["#6B4226", "#A67C52", "#FAF3ED"],
+            },
+            {
+              value: "slate_dark",
+              label: "슬레이트 다크",
+              desc: "미니멀 · 모던",
+              colors: ["#475569", "#CBD5E1", "#F1F5F9"],
+            },
+            {
+              value: "rose_gold",
+              label: "로즈골드",
+              desc: "여성 · 프리미엄",
+              colors: ["#9B6B5A", "#C4956A", "#FDF4F0"],
             },
           ] as const).map((style) => (
             <button
