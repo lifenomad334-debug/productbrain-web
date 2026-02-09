@@ -482,12 +482,24 @@ export default function ResultPage() {
         {/* ============================================================ */}
         <div className="space-y-6">
           {assets.map((asset, idx) => {
-            const slideInfo = SLIDE_LABELS[asset.slide_id] || {
+            // details-1, details-2 등은 details로 매핑
+            const baseSlideId = asset.slide_id.startsWith("details-") ? "details" : asset.slide_id;
+            const detailNum = asset.slide_id.startsWith("details-") ? parseInt(asset.slide_id.split("-")[1]) : null;
+            const slideInfo = SLIDE_LABELS[baseSlideId] || {
               label: `컷 ${idx + 1}`,
               emoji: "📄",
               desc: "",
+              why: "",
+              goal: "",
+              examples: [],
             };
-            const fields = SLIDE_FIELDS[asset.slide_id] || [];
+            // details-N이면 라벨 커스텀
+            const displayInfo = detailNum !== null ? {
+              ...slideInfo,
+              label: `상세 설명 ${detailNum}`,
+              desc: `제품의 핵심 장점 포인트 ${detailNum}`,
+            } : slideInfo;
+            const fields = SLIDE_FIELDS[baseSlideId] || [];
             const saving = isSaving[asset.slide_id];
 
             return (
@@ -503,13 +515,13 @@ export default function ResultPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-base">{slideInfo.emoji}</span>
+                        <span className="text-base">{displayInfo.emoji}</span>
                         <span className="text-base font-semibold text-neutral-900">
-                          {slideInfo.label}
+                          {displayInfo.label}
                         </span>
                       </div>
                       <p className="mt-0.5 text-sm text-neutral-600">
-                        {slideInfo.desc}
+                        {displayInfo.desc}
                       </p>
                     </div>
                   </div>
@@ -531,7 +543,7 @@ export default function ResultPage() {
                   <div className="relative lg:w-[480px] lg:min-w-[480px] lg:sticky lg:top-4 lg:self-start">
                     <img
                       src={asset.image_url}
-                      alt={`${slideInfo.label} - ${idx + 1}번째 컷`}
+                      alt={`${displayInfo.label} - ${idx + 1}번째 컷`}
                       className="w-full select-none"
                       draggable={false}
                       onContextMenu={(e) => e.preventDefault()}
@@ -578,7 +590,7 @@ export default function ResultPage() {
                           <span className="text-sm font-bold text-blue-900">왜 이 컷이 필요한가요?</span>
                         </div>
                         <p className="text-sm leading-relaxed text-blue-800">
-                          {slideInfo.why}
+                          {displayInfo.why || ""}
                         </p>
                       </div>
 
@@ -588,7 +600,7 @@ export default function ResultPage() {
                           <span className="text-sm font-bold text-emerald-900">이 컷의 목표</span>
                         </div>
                         <p className="text-sm leading-relaxed text-emerald-800">
-                          {slideInfo.goal}
+                          {displayInfo.goal || ""}
                         </p>
                         
                         {/* 예시 */}
@@ -598,7 +610,7 @@ export default function ResultPage() {
                             <span className="text-xs font-semibold text-emerald-700">이런 문장이 좋아요</span>
                           </div>
                           <ul className="space-y-1">
-                            {slideInfo.examples.map((ex, i) => (
+                            {(displayInfo.examples || []).map((ex, i) => (
                               <li key={i} className="text-sm text-emerald-700 leading-relaxed">
                                 • {ex}
                               </li>
