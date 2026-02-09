@@ -291,7 +291,7 @@ export default function GenerateForm({
             { count: 4 as const, label: "4컷", desc: "간단한 전환용" },
             { count: 6 as const, label: "6컷", desc: "가장 많이 쓰는 설득 구조", recommended: true },
             { count: 8 as const, label: "8컷", desc: "정보가 많은 상품용" },
-          ].map(({ count, label, desc, recommended, disabled }) => (
+          ].map(({ count, label, desc, recommended }) => (
             <button
               key={count}
               type="button"
