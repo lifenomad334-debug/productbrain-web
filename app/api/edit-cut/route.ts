@@ -6,11 +6,10 @@ export const runtime = "nodejs";
 type RequestBody = {
   generation_id: string;
   slide_id: string;
-  // 기존 방식 (하위호환)
   edited_text?: string;
   tweak?: "shorter" | "direct" | "premium" | null;
-  // 새 방식: 전체 JSON 업데이트
   full_json_update?: any;
+  design_style?: string;
 };
 
 // 인메모리 레이트리밋 (generation당 10초 쿨다운)
@@ -21,7 +20,7 @@ export async function POST(req: Request) {
 
   try {
     const body: RequestBody = await req.json();
-    const { generation_id, slide_id, edited_text, tweak, full_json_update } = body;
+    const { generation_id, slide_id, edited_text, tweak, full_json_update, design_style } = body;
 
     if (!generation_id || !slide_id) {
       return NextResponse.json(
@@ -123,7 +122,7 @@ export async function POST(req: Request) {
         json: updatedJson,
         platform: gen.platform || "coupang",
         image_urls: imageUrls,
-        design_style: sellerInput.design_style || "modern_red",
+        design_style: design_style || sellerInput.design_style || "modern_red",
       }),
     });
 
