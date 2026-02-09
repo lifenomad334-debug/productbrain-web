@@ -387,31 +387,46 @@ export default function ResultPage() {
     const updatedJson = { ...editedJson, design_style: themeId };
     setEditedJson(updatedJson);
 
+    let failCount = 0;
+
     try {
       // 모든 슬라이드를 순차적으로 재렌더링
       for (const asset of assets) {
         setIsSaving((s) => ({ ...s, [asset.slide_id]: true }));
         
-        const res = await fetch("/api/edit-cut", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            generation_id: generationId,
-            slide_id: asset.slide_id,
-            full_json_update: updatedJson,
-            design_style: themeId,
-          }),
-        });
+        try {
+          const res = await fetch("/api/edit-cut", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              generation_id: generationId,
+              slide_id: asset.slide_id,
+              full_json_update: updatedJson,
+              design_style: themeId,
+            }),
+          });
 
-        const json = await res.json();
-        if (!json.ok) throw new Error(json.error || "테마 변경 실패");
-
-        setAssets((prev) =>
-          prev.map((a) =>
-            a.slide_id === asset.slide_id ? { ...a, image_url: json.image_url } : a
-          )
-        );
+          const json = await res.json();
+          if (json.ok) {
+            setAssets((prev) =>
+              prev.map((a) =>
+                a.slide_id === asset.slide_id ? { ...a, image_url: json.image_url } : a
+              )
+            );
+          } else {
+            console.warn(`슬라이드 ${asset.slide_id} 렌더링 실패:`, json.error);
+            failCount++;
+          }
+        } catch (slideErr) {
+          console.warn(`슬라이드 ${asset.slide_id} 요청 실패:`, slideErr);
+          failCount++;
+        }
+        
         setIsSaving((s) => ({ ...s, [asset.slide_id]: false }));
+      }
+
+      if (failCount > 0) {
+        alert(`${assets.length - failCount}/${assets.length}컷 테마 적용 완료 (${failCount}컷 실패 — 다시 시도해주세요)`);
       }
 
       setGeneration((prev) =>
@@ -423,7 +438,6 @@ export default function ResultPage() {
       setEditedJson((prev: any) => ({ ...prev, design_style: prevTheme }));
     } finally {
       setIsChangingTheme(false);
-      // 모든 saving 해제
       setIsSaving({});
     }
   }

@@ -29,12 +29,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 레이트리밋 체크 (10초 쿨다운)
+    // 레이트리밋 체크 (10초 쿨다운) — 테마 변경 시 스킵
+    const isThemeChange = !!design_style;
     const cooldownKey = generation_id;
     const lastEdit = editCooldowns.get(cooldownKey);
     const now = Date.now();
     
-    if (lastEdit && now - lastEdit < 10000) {
+    if (!isThemeChange && lastEdit && now - lastEdit < 10000) {
       const remainingSeconds = Math.ceil((10000 - (now - lastEdit)) / 1000);
       return NextResponse.json(
         { ok: false, error: `${remainingSeconds}초 후에 다시 시도해주세요` },
