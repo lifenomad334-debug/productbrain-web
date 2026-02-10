@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import FeedbackBox from "@/components/FeedbackBox";
+import GlobalStyleToolbar from "@/components/GlobalStyleToolbar";
+import { applyGroupStyleOverrides, groupConfigs } from "@/utils/styleOverrides";
+import type { StyleGroupKey, StyleProps } from "@/utils/styleOverrides";
 
 // ============================================================
 // slide_id → JSON 필드 매핑 정의
@@ -262,53 +265,9 @@ export default function ResultPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [replacingSlideId, setReplacingSlideId] = useState<string | null>(null);
 
-  // 스타일 편집 (Phase 1: fontSize + color)
-  const FONT_SIZES = [
-    { label: "기본", value: "" },
-    { label: "S", value: "12px" },
-    { label: "M", value: "16px" },
-    { label: "L", value: "22px" },
-    { label: "XL", value: "30px" },
-    { label: "2XL", value: "40px" },
-    { label: "3XL", value: "52px" },
-  ];
-  const COLOR_PRESETS = [
-    { label: "기본", value: "", color: "" },
-    { label: "화이트", value: "#FFFFFF", color: "#FFFFFF" },
-    { label: "블랙", value: "#111111", color: "#111111" },
-    { label: "레드", value: "#E6002D", color: "#E6002D" },
-    { label: "골드", value: "#D97706", color: "#D97706" },
-    { label: "네이비", value: "#1B2A4A", color: "#1B2A4A" },
-    { label: "그린", value: "#3D7A2A", color: "#3D7A2A" },
-    { label: "코랄", value: "#D4615A", color: "#D4615A" },
-  ];
-  const [openStyleField, setOpenStyleField] = useState<string | null>(null);
-
-  // 스타일 오버라이드 핸들러
-  function handleStyleChange(fieldKey: string, property: "fontSize" | "color", value: string) {
-    setEditedJson((prev: any) => {
-      const overrides = { ...(prev.style_overrides || {}) };
-      if (!value) {
-        if (overrides[fieldKey]) {
-          const updated = { ...overrides[fieldKey] };
-          delete updated[property];
-          if (Object.keys(updated).length === 0) {
-            delete overrides[fieldKey];
-          } else {
-            overrides[fieldKey] = updated;
-          }
-        }
-      } else {
-        overrides[fieldKey] = { ...(overrides[fieldKey] || {}), [property]: value };
-      }
-      return { ...prev, style_overrides: overrides };
-    });
-    setEditedFields((prev) => new Set(prev).add(`style:${fieldKey}.${property}`));
-  }
-
-  function getStyleOverride(fieldKey: string, property: string): string {
-    return editedJson?.style_overrides?.[fieldKey]?.[property] || "";
-  }
+  // 글로벌 스타일 툴바
+  const [styleRenderCooldown, setStyleRenderCooldown] = useState(0);
+  const [isStyleRendering, setIsStyleRendering] = useState(false);
 
   // 테마 선택
   const THEMES = [
@@ -420,6 +379,64 @@ export default function ResultPage() {
       alert(err.message || "수정 중 오류가 발생했습니다");
     } finally {
       setIsSaving((s) => ({ ...s, [slideId]: false }));
+    }
+  }
+
+  // 글로벌 스타일 적용 후 전체 슬라이드 재렌더링
+  async function handleStyleApplyAndRender() {
+    if (!generation || !editedJson) return;
+    setIsStyleRendering(true);
+    let failCount = 0;
+
+    try {
+      for (const asset of assets) {
+        setIsSaving((s) => ({ ...s, [asset.slide_id]: true }));
+        try {
+          const res = await fetch("/api/edit-cut", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              generation_id: generationId,
+              slide_id: asset.slide_id,
+              full_json_update: editedJson,
+              design_style: currentTheme,
+            }),
+          });
+          const json = await res.json();
+          if (json.ok) {
+            setAssets((prev) =>
+              prev.map((a) =>
+                a.slide_id === asset.slide_id ? { ...a, image_url: json.image_url } : a
+              )
+            );
+          } else {
+            failCount++;
+          }
+        } catch {
+          failCount++;
+        }
+        setIsSaving((s) => ({ ...s, [asset.slide_id]: false }));
+      }
+
+      if (failCount > 0) {
+        alert(`${assets.length - failCount}/${assets.length}컷 스타일 적용 완료 (${failCount}컷 실패)`);
+      }
+
+      setGeneration((prev) =>
+        prev ? { ...prev, generated_json: editedJson } : prev
+      );
+      setEditedFields(new Set());
+
+      // 쿨다운 10초
+      setStyleRenderCooldown(10);
+      const timer = setInterval(() => {
+        setStyleRenderCooldown((prev) => {
+          if (prev <= 1) { clearInterval(timer); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    } finally {
+      setIsStyleRendering(false);
     }
   }
 
@@ -646,6 +663,24 @@ export default function ResultPage() {
         </div>
 
         {/* ============================================================ */}
+        {/* 글로벌 스타일 툴바 */}
+        {/* ============================================================ */}
+        {editedJson && (
+          <GlobalStyleToolbar
+            editedJson={editedJson}
+            onApply={(group: StyleGroupKey, patch: StyleProps) => {
+              setEditedJson((prev: any) =>
+                applyGroupStyleOverrides(prev, group, patch, groupConfigs)
+              );
+              setEditedFields((prev) => new Set(prev).add(`style:${group}`));
+            }}
+            onApplyAndRender={handleStyleApplyAndRender}
+            cooldownRemaining={styleRenderCooldown}
+            isRendering={isStyleRendering}
+          />
+        )}
+
+        {/* ============================================================ */}
         {/* 컷 카드 목록 */}
         {/* ============================================================ */}
         <div className="space-y-6">
@@ -812,101 +847,12 @@ export default function ResultPage() {
 
                           return (
                             <div key={field.key}>
-                              <div className="mb-0.5 flex items-center justify-between">
-                                <label className="flex items-center gap-1.5 text-xs font-medium text-neutral-500">
-                                  <span>{field.label}</span>
-                                  {isChanged && (
-                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                                  )}
-                                </label>
-                                {/* 스타일 컨트롤 */}
-                                <div className="flex items-center gap-1">
-                                  {/* 폰트 크기 */}
-                                  <div className="relative">
-                                    <button
-                                      type="button"
-                                      onClick={() => setOpenStyleField(openStyleField === `${field.key}:size` ? null : `${field.key}:size`)}
-                                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
-                                        getStyleOverride(field.key, "fontSize")
-                                          ? "bg-blue-100 text-blue-700"
-                                          : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
-                                      }`}
-                                      title="폰트 크기"
-                                    >
-                                      Aa
-                                    </button>
-                                    {openStyleField === `${field.key}:size` && (
-                                      <div className="absolute right-0 top-6 z-10 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg">
-                                        <div className="flex gap-1">
-                                          {FONT_SIZES.map((s) => (
-                                            <button
-                                              key={s.label}
-                                              type="button"
-                                              onClick={() => {
-                                                handleStyleChange(field.key, "fontSize", s.value);
-                                                setOpenStyleField(null);
-                                              }}
-                                              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
-                                                getStyleOverride(field.key, "fontSize") === s.value
-                                                  ? "bg-blue-600 text-white"
-                                                  : "bg-neutral-50 text-neutral-600 hover:bg-neutral-100"
-                                              }`}
-                                            >
-                                              {s.label}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {/* 색상 */}
-                                  <div className="relative">
-                                    <button
-                                      type="button"
-                                      onClick={() => setOpenStyleField(openStyleField === `${field.key}:color` ? null : `${field.key}:color`)}
-                                      className={`flex h-5 w-5 items-center justify-center rounded transition-colors ${
-                                        getStyleOverride(field.key, "color")
-                                          ? "ring-2 ring-blue-400"
-                                          : "bg-neutral-100 hover:bg-neutral-200"
-                                      }`}
-                                      title="텍스트 색상"
-                                    >
-                                      <span
-                                        className="h-3 w-3 rounded-full border border-neutral-300"
-                                        style={{ background: getStyleOverride(field.key, "color") || "#999" }}
-                                      />
-                                    </button>
-                                    {openStyleField === `${field.key}:color` && (
-                                      <div className="absolute right-0 top-6 z-10 rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
-                                        <div className="grid grid-cols-4 gap-1.5">
-                                          {COLOR_PRESETS.map((c) => (
-                                            <button
-                                              key={c.label}
-                                              type="button"
-                                              onClick={() => {
-                                                handleStyleChange(field.key, "color", c.value);
-                                                setOpenStyleField(null);
-                                              }}
-                                              className={`flex flex-col items-center gap-0.5 rounded p-1 transition-colors ${
-                                                getStyleOverride(field.key, "color") === c.value
-                                                  ? "bg-blue-50 ring-1 ring-blue-400"
-                                                  : "hover:bg-neutral-50"
-                                              }`}
-                                              title={c.label}
-                                            >
-                                              <span
-                                                className="h-4 w-4 rounded-full border border-neutral-300"
-                                                style={{ background: c.color || "linear-gradient(135deg, #ccc, #fff)" }}
-                                              />
-                                              <span className="text-[9px] text-neutral-500">{c.label}</span>
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
+                              <label className="mb-0.5 flex items-center gap-1.5 text-xs font-medium text-neutral-500">
+                                <span>{field.label}</span>
+                                {isChanged && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                                )}
+                              </label>
                               {field.type === "textarea" ? (
                                 <textarea
                                   className={`w-full rounded-lg border p-2 text-sm leading-relaxed outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-200 ${
@@ -946,7 +892,6 @@ export default function ResultPage() {
                           onClick={() => {
                             setEditedJson(generation?.generated_json);
                             setEditedFields(new Set());
-                            setOpenStyleField(null);
                           }}
                           className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 hover:bg-neutral-50"
                         >
