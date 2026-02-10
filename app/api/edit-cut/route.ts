@@ -10,6 +10,7 @@ type RequestBody = {
   tweak?: "shorter" | "direct" | "premium" | null;
   full_json_update?: any;
   design_style?: string;
+  layout?: string;
 };
 
 // 인메모리 레이트리밋 (generation당 10초 쿨다운)
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
 
   try {
     const body: RequestBody = await req.json();
-    const { generation_id, slide_id, edited_text, tweak, full_json_update, design_style } = body;
+    const { generation_id, slide_id, edited_text, tweak, full_json_update, design_style, layout } = body;
 
     if (!generation_id || !slide_id) {
       return NextResponse.json(
@@ -124,6 +125,7 @@ export async function POST(req: Request) {
         platform: gen.platform || "coupang",
         image_urls: imageUrls,
         design_style: design_style || sellerInput.design_style || "modern_red",
+        layout: layout || sellerInput.layout || "classic",
       }),
     });
 

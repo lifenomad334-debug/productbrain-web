@@ -281,6 +281,7 @@ export default function ResultPage() {
     { id: "rose_gold", label: "로즈골드", color: "#9B6B5A", accent2: "#C4956A" },
   ];
   const [currentTheme, setCurrentTheme] = useState<string>("modern_red");
+  const [currentLayout, setCurrentLayout] = useState<string>("classic");
   const [isChangingTheme, setIsChangingTheme] = useState(false);
 
   // 데이터 로드
@@ -308,6 +309,10 @@ export default function ResultPage() {
           setCurrentTheme(data.generated_json.design_style);
         } else if (data.seller_input?.design_style) {
           setCurrentTheme(data.seller_input.design_style);
+        }
+        // 레이아웃 초기화
+        if (data.seller_input?.layout) {
+          setCurrentLayout(data.seller_input.layout);
         }
 
         const { data: assetsData, error: assetsError } = await supabaseBrowser
@@ -353,6 +358,7 @@ export default function ResultPage() {
           full_json_update: editedJson,
           tweak: activeTone[slideId] || null,
           design_style: currentTheme,
+          layout: currentLayout,
         }),
       });
 
@@ -403,6 +409,7 @@ export default function ResultPage() {
               slide_id: asset.slide_id,
               full_json_update: jsonToSend,
               design_style: jsonToSend.design_style || currentTheme,
+              layout: currentLayout,
             }),
           });
           const json = await res.json();
@@ -471,6 +478,7 @@ export default function ResultPage() {
               slide_id: asset.slide_id,
               full_json_update: updatedJson,
               design_style: themeId,
+              layout: currentLayout,
             }),
           });
 
