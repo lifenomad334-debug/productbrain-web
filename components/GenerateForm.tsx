@@ -327,6 +327,7 @@ export default function GenerateForm({
   const [platform, setPlatform] = useState<Platform>("coupang");
   const [category, setCategory] = useState<string>("electronics");
   const [designStyle, setDesignStyle] = useState<string>("modern_red");
+  const [layout, setLayout] = useState<string>("classic");
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -384,6 +385,7 @@ export default function GenerateForm({
       formData.append("platform", platform);
       formData.append("category", category);
       formData.append("design_style", designStyle);
+      formData.append("layout", layout);
       
       // 컷별 입력을 additional_info로 변환
       const cutPreset = CUT_PRESETS[selectedCutCount];
@@ -728,6 +730,56 @@ export default function GenerateForm({
               </div>
               <div className="text-sm font-semibold text-neutral-900">{style.label}</div>
               <div className="text-xs text-neutral-500">{style.desc}</div>
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* 레이아웃 선택 */}
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-semibold text-neutral-900">
+          📐 레이아웃 선택
+        </legend>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {([
+            {
+              value: "classic",
+              label: "클래식",
+              desc: "좌우 교차형",
+              icon: "📋",
+            },
+            {
+              value: "magazine",
+              label: "매거진",
+              desc: "카드 그리드",
+              icon: "📰",
+            },
+            {
+              value: "poster",
+              label: "포스터",
+              desc: "다크 모드",
+              icon: "🖼️",
+            },
+            {
+              value: "natural",
+              label: "내추럴",
+              desc: "톤온톤",
+              icon: "🌿",
+            },
+          ] as const).map((lo) => (
+            <button
+              key={lo.value}
+              type="button"
+              onClick={() => setLayout(lo.value)}
+              className={`rounded-xl border-2 p-3 text-center transition-all hover:shadow-md ${
+                layout === lo.value
+                  ? "border-neutral-900 bg-neutral-50 shadow-md"
+                  : "border-neutral-200"
+              }`}
+            >
+              <div className="mb-1 text-2xl">{lo.icon}</div>
+              <div className="text-sm font-semibold text-neutral-900">{lo.label}</div>
+              <div className="text-xs text-neutral-500">{lo.desc}</div>
             </button>
           ))}
         </div>
