@@ -23,6 +23,7 @@ export async function POST(req: Request) {
   let imageFiles: File[] = [];
   let userId: string | null = null;
   let cutCount: number = 6;
+  let layout: string = "classic";
 
   const contentType = req.headers.get("content-type") || "";
 
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
     imageFiles = formData.getAll("images") as File[];
     userId = (formData.get("user_id") as string) || null;
     cutCount = parseInt((formData.get("cut_count") as string) || "6", 10) || 6;
+    layout = (formData.get("layout") as string) || "classic";
   } else {
     const body = await req.json();
     productTitle = body.product_title || "";
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
     designStyle = body.design_style || "modern_red";
     userId = body.user_id || null;
     cutCount = parseInt(body.cut_count || "6", 10) || 6;
+    layout = body.layout || "classic";
   }
 
   if (!productTitle || !platform) {
@@ -165,10 +168,7 @@ export async function POST(req: Request) {
     // 3) Edge Function: JSON 생성
     // 컷 수 → detail blocks 매핑
     // 4컷: 1 detail (총 6장), 6컷: 2 details (총 7장), 8컷: 3 details (총 8장)
-    // 컷 수 → detail blocks 매핑
-    // 총 슬라이드 = hero(1) + problem(1) + benefits(1) + details(N) + reasons(1) + specs(1) + faq(1) + cta(1) = 7 + N
-    // 4컷→1, 6컷→2, 8컷→3, 10컷→5, 12컷→7
-    const detailBlockMap: Record<number, number> = { 4: 1, 6: 2, 8: 3, 10: 5, 12: 7 };
+    const detailBlockMap: Record<number, number> = { 4: 1, 6: 2, 8: 3 };
     const detailBlockCount = detailBlockMap[cutCount] || 3;
     
     console.log("EDGE CALL START:", EDGE_URL);
@@ -276,6 +276,7 @@ export async function POST(req: Request) {
         image_urls: uploadedImageUrls,
         design_style: designStyle,
         category: category,
+        layout: layout,
       }),
     });
 

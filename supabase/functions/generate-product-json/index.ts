@@ -462,7 +462,12 @@ function buildUserPrompt(input: any, categoryKey: string | null): string {
   }
 
   // 컷 수에 따른 detail blocks 수 지정
-  const detailBlockCount = input.detail_block_count || 3;
+  // 식품 카테고리는 3블록 강제 (식감/먹는 장면/먹는 습관)
+  let detailBlockCount = input.detail_block_count || 3;
+  if (categoryKey === 'food' && detailBlockCount !== 3) {
+    console.log(`[FOOD] detail_block_count ${detailBlockCount} → 3으로 강제 변경`);
+    detailBlockCount = 3;
+  }
   prompt += `\n\n[컷 수 설정] details.blocks를 정확히 ${detailBlockCount}개 생성하세요.`;
   if (detailBlockCount > 3) {
     prompt += ` 각 블록은 서로 다른 관점(편안함, 휴대성, 내구성, 디자인, 소재, 사용장면, 비교우위 등)에서 작성하세요.`;
@@ -825,6 +830,10 @@ serve(async (req: Request) => {
       }
 
       // Claude API call
+      // 컷 수에 따라 max_tokens 동적 조정 (10/12컷은 JSON이 길어짐)
+      const detailCount = body.detail_block_count || 3;
+      const maxTokens = detailCount >= 5 ? 6144 : 4096;
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -834,7 +843,7 @@ serve(async (req: Request) => {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 4096,
+          max_tokens: maxTokens,
           temperature: 0.3,
           system: systemPrompt,
           messages: [{ role: 'user', content: currentPrompt }],
