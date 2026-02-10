@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import FeedbackBox from "@/components/FeedbackBox";
 import GlobalStyleToolbar from "@/components/GlobalStyleToolbar";
-import { applyGroupStyleOverrides, groupConfigs } from "@/utils/styleOverrides";
-import type { StyleGroupKey, StyleProps } from "@/utils/styleOverrides";
+import { updateStyleOverridesV2, resetStyleOverrides, getCutLabel } from "@/utils/styleOverrides";
+import type { CutId, PendingStyle } from "@/utils/styleOverrides";
 
 // ============================================================
 // slide_id → JSON 필드 매핑 정의
@@ -265,9 +265,11 @@ export default function ResultPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [replacingSlideId, setReplacingSlideId] = useState<string | null>(null);
 
-  // 글로벌 스타일 툴바
+  // 글로벌 스타일 툴바 v2
   const [styleRenderCooldown, setStyleRenderCooldown] = useState(0);
   const [isStyleRendering, setIsStyleRendering] = useState(false);
+  const [activeCut, setActiveCut] = useState<CutId>("ALL");
+  const [pendingStyle, setPendingStyle] = useState<PendingStyle>({});
 
   // 테마 선택
   const THEMES = [
@@ -390,15 +392,20 @@ export default function ResultPage() {
     }
   }
 
-  // 글로벌 스타일 적용 후 전체 슬라이드 재렌더링
+  // 글로벌 스타일 적용 후 렌더링 (전체 or 컷별)
   async function handleStyleApplyAndRender(updatedJson?: any) {
     const jsonToSend = updatedJson || editedJson;
     if (!generation || !jsonToSend) return;
     setIsStyleRendering(true);
     let failCount = 0;
 
+    // 렌더 대상: 전체 or 해당 컷만
+    const targetAssets = activeCut === "ALL"
+      ? assets
+      : assets.filter((a) => a.slide_id === activeCut);
+
     try {
-      for (const asset of assets) {
+      for (const asset of targetAssets) {
         setIsSaving((s) => ({ ...s, [asset.slide_id]: true }));
         try {
           const res = await fetch("/api/edit-cut", {
@@ -429,7 +436,7 @@ export default function ResultPage() {
       }
 
       if (failCount > 0) {
-        alert(`${assets.length - failCount}/${assets.length}컷 스타일 적용 완료 (${failCount}컷 실패)`);
+        alert(`${targetAssets.length - failCount}/${targetAssets.length}컷 적용 완료 (${failCount}컷 실패)`);
       }
 
       setGeneration((prev) =>
@@ -437,8 +444,8 @@ export default function ResultPage() {
       );
       setEditedFields(new Set());
 
-      // 쿨다운 10초
-      setStyleRenderCooldown(10);
+      // 쿨다운
+      setStyleRenderCooldown(activeCut === "ALL" ? 10 : 5);
       const timer = setInterval(() => {
         setStyleRenderCooldown((prev) => {
           if (prev <= 1) { clearInterval(timer); return 0; }
@@ -678,14 +685,24 @@ export default function ResultPage() {
         {/* ============================================================ */}
         {editedJson && (
           <GlobalStyleToolbar
+            cuts={assets.map((a) => ({ id: a.slide_id, label: getCutLabel(a.slide_id) }))}
+            activeCut={activeCut}
+            setActiveCut={setActiveCut}
+            pending={pendingStyle}
+            setPending={setPendingStyle}
             editedJson={editedJson}
-            onApply={(group: StyleGroupKey, patch: StyleProps) => {
-              const updated = applyGroupStyleOverrides(editedJson, group, patch, groupConfigs);
+            onApply={() => {
+              const updated = updateStyleOverridesV2(editedJson, activeCut, pendingStyle);
               setEditedJson(updated);
-              setEditedFields((prev) => new Set(prev).add(`style:${group}`));
+              setPendingStyle({});
               handleStyleApplyAndRender(updated);
             }}
-            onApplyAndRender={async () => {}}
+            onReset={() => {
+              const updated = resetStyleOverrides(editedJson, activeCut);
+              setEditedJson(updated);
+              setPendingStyle({});
+              handleStyleApplyAndRender(updated);
+            }}
             cooldownRemaining={styleRenderCooldown}
             isRendering={isStyleRendering}
           />
