@@ -30,7 +30,7 @@ export const groupConfigs: Record<StyleGroupKey, GroupConfig> = {
   hero: {
     label: "히어로 제목",
     keyPrefixes: ["hero.product_title", "hero.hook_line"],
-    fontSizePresets: ["36px", "42px", "48px", "56px"],
+    fontSizePresets: ["28px", "34px", "40px", "48px", "56px", "64px"],
     colorPresets: COLOR_PRESETS,
   },
   section: {
@@ -44,7 +44,7 @@ export const groupConfigs: Record<StyleGroupKey, GroupConfig> = {
       "cta.headline",
       "details.blocks.",
     ],
-    fontSizePresets: ["22px", "26px", "30px", "34px"],
+    fontSizePresets: ["18px", "22px", "26px", "30px", "36px"],
     colorPresets: COLOR_PRESETS,
   },
   body: {
@@ -59,7 +59,7 @@ export const groupConfigs: Record<StyleGroupKey, GroupConfig> = {
       "faq.items.",
       "cta.sub_text",
     ],
-    fontSizePresets: ["14px", "16px", "18px", "20px"],
+    fontSizePresets: ["12px", "14px", "16px", "18px", "22px"],
     colorPresets: COLOR_PRESETS,
   },
 };

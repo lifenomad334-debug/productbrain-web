@@ -48,7 +48,6 @@ export default function GlobalStyleToolbar({
     if (!isDirty) return;
     onApply(activeGroup, pending);
     setPending({});
-    await onApplyAndRender();
   };
 
   const handleReset = () => {
@@ -58,7 +57,7 @@ export default function GlobalStyleToolbar({
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="sticky top-0 z-20 rounded-2xl border border-neutral-200 bg-white/95 p-4 shadow-sm backdrop-blur-sm">
       {/* 1줄: 그룹 탭 + 액션 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">

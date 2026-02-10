@@ -306,6 +306,8 @@ export default function ResultPage() {
         // 테마 초기화
         if (data.generated_json?.design_style) {
           setCurrentTheme(data.generated_json.design_style);
+        } else if (data.seller_input?.design_style) {
+          setCurrentTheme(data.seller_input.design_style);
         }
 
         const { data: assetsData, error: assetsError } = await supabaseBrowser
@@ -383,8 +385,9 @@ export default function ResultPage() {
   }
 
   // 글로벌 스타일 적용 후 전체 슬라이드 재렌더링
-  async function handleStyleApplyAndRender() {
-    if (!generation || !editedJson) return;
+  async function handleStyleApplyAndRender(updatedJson?: any) {
+    const jsonToSend = updatedJson || editedJson;
+    if (!generation || !jsonToSend) return;
     setIsStyleRendering(true);
     let failCount = 0;
 
@@ -398,8 +401,8 @@ export default function ResultPage() {
             body: JSON.stringify({
               generation_id: generationId,
               slide_id: asset.slide_id,
-              full_json_update: editedJson,
-              design_style: currentTheme,
+              full_json_update: jsonToSend,
+              design_style: jsonToSend.design_style || currentTheme,
             }),
           });
           const json = await res.json();
@@ -423,7 +426,7 @@ export default function ResultPage() {
       }
 
       setGeneration((prev) =>
-        prev ? { ...prev, generated_json: editedJson } : prev
+        prev ? { ...prev, generated_json: jsonToSend } : prev
       );
       setEditedFields(new Set());
 
@@ -669,12 +672,12 @@ export default function ResultPage() {
           <GlobalStyleToolbar
             editedJson={editedJson}
             onApply={(group: StyleGroupKey, patch: StyleProps) => {
-              setEditedJson((prev: any) =>
-                applyGroupStyleOverrides(prev, group, patch, groupConfigs)
-              );
+              const updated = applyGroupStyleOverrides(editedJson, group, patch, groupConfigs);
+              setEditedJson(updated);
               setEditedFields((prev) => new Set(prev).add(`style:${group}`));
+              handleStyleApplyAndRender(updated);
             }}
-            onApplyAndRender={handleStyleApplyAndRender}
+            onApplyAndRender={async () => {}}
             cooldownRemaining={styleRenderCooldown}
             isRendering={isStyleRendering}
           />
