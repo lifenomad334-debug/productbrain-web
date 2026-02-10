@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     // 1. generation 조회
     const { data: gen, error: genErr } = await sb
       .from("generations")
-      .select("id, user_id, generated_json, platform, style, seller_input")
+      .select("id, user_id, generated_json, platform, style, seller_input, design_style, layout")
       .eq("id", generation_id)
       .single();
 
@@ -124,8 +124,8 @@ export async function POST(req: Request) {
         json: updatedJson,
         platform: gen.platform || "coupang",
         image_urls: imageUrls,
-        design_style: design_style || sellerInput.design_style || "modern_red",
-        layout: layout || sellerInput.layout || "classic",
+        design_style: design_style || gen.design_style || sellerInput.design_style || "modern_red",
+        layout: layout || gen.layout || sellerInput.layout || "classic",
       }),
     });
 
