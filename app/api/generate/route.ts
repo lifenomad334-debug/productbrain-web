@@ -165,7 +165,10 @@ export async function POST(req: Request) {
     // 3) Edge Function: JSON 생성
     // 컷 수 → detail blocks 매핑
     // 4컷: 1 detail (총 6장), 6컷: 2 details (총 7장), 8컷: 3 details (총 8장)
-    const detailBlockMap: Record<number, number> = { 4: 1, 6: 2, 8: 3 };
+    // 컷 수 → detail blocks 매핑
+    // 총 슬라이드 = hero(1) + problem(1) + benefits(1) + details(N) + reasons(1) + specs(1) + faq(1) + cta(1) = 7 + N
+    // 4컷→1, 6컷→2, 8컷→3, 10컷→5, 12컷→7
+    const detailBlockMap: Record<number, number> = { 4: 1, 6: 2, 8: 3, 10: 5, 12: 7 };
     const detailBlockCount = detailBlockMap[cutCount] || 3;
     
     console.log("EDGE CALL START:", EDGE_URL);
