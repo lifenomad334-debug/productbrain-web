@@ -307,13 +307,17 @@ export default function ResultPage() {
         setEditedJson(data.generated_json);
         setFeedbackSubmitted(data.feedback_submitted || false);
         // 테마 초기화
-        if (data.generated_json?.design_style) {
+        if (data.design_style) {
+          setCurrentTheme(data.design_style);
+        } else if (data.generated_json?.design_style) {
           setCurrentTheme(data.generated_json.design_style);
         } else if (data.seller_input?.design_style) {
           setCurrentTheme(data.seller_input.design_style);
         }
         // 레이아웃 초기화
-        if (data.seller_input?.layout) {
+        if (data.layout) {
+          setCurrentLayout(data.layout);
+        } else if (data.seller_input?.layout) {
           setCurrentLayout(data.seller_input.layout);
         }
 

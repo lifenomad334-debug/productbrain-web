@@ -118,6 +118,8 @@ export async function POST(req: Request) {
       platform: platform,
       category: category,
       style: "trust_dense",
+      design_style: designStyle,
+      layout: layout,
       seller_input: { product_title: productTitle, platform, category, additional_info: additionalInfo },
       status: "generating",
       edits_remaining: 0,
@@ -161,6 +163,8 @@ export async function POST(req: Request) {
           platform,
           additional_info: additionalInfo,
           image_urls: uploadedImageUrls,
+          design_style: designStyle,
+          layout: layout,
         },
       }).eq("id", generationId);
     }
